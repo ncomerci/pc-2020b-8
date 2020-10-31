@@ -48,6 +48,10 @@ Thumbs.db
 *.mov
 *.wmv
 
+# object files
+src/*.o
+test/*.o
+
 #VSCode
 .vscode/
 
