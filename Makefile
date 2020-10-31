@@ -1,22 +1,32 @@
-CFLAGS = -Wall -Wextra -pedantic -pedantic-errors \
-	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
+HEADERS=interfaces
+SRC=src
+TEST=test
 
-# CFLAGS = -Wall -Wextra -Werror -Wno-unused-parameter \
-#    -pedantic -pedantic-errors -std=c11 -g -D_POSIX_C_SOURCE=200112L -O3 \
-#    -fsanitize=address $(MYCFLAGS)
+HFILES=$(shell find $(HEADERS) -name '*.h' | sed 's/^.\///')
+
+FILES=$(shell find $(SRC) -name '*.c' | sed 's/^.\///')
+OFILES=$(patsubst %.c,./%.o,$(FILES))
+
+TESTFILES=$(shell find $(TEST) -name '*.c' | sed 's/^.\///')
+OTESTFILES=$(patsubst %.c,./%.o,$(TESTFILES))
+
+CFLAGS = -Wall -Wextra -pedantic -pedantic-errors -pthread \
+	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
+TESTFLAGS = -lcheck -lrt -lm -lsubunit $(MYCFLAGS)
+
+%.o: %.c $(HFILES)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 all: socks5d
 
-buffer.o: buffer.h
-hello.o: hello.h
-netutils.o: netutils.h
-# TODO: add main.o
-SOCKS5D_OBJ: buffer.o hello.o netutils.o 
-socks5d: $(SOCKS5D_OBJ)
-	$(CC) $(SOCKS5D_OBJ) $(CFLAGS) -lpthread 
+socks5d: $(OFILES)
+	$(CC) $(OFILES) $(CFLAGS)
+
+# TEST NO FUNCIONA: hay que buscar la forma de pasarle argumentos tipo: 'make test buffer' para que compile buffer_test.c y buffer.c solamente
+test: $(OFILES) $(OTESTFILES)
+	$(CC) $(OFILES) $(OTESTFILES) $(CFLAGS) $(TESTFLAGS)
 
 .PHONY: clean
 
 clean: 
-	rm -rf $(SOCKS5D_OBJ) 
-
+	rm -rf $(OFILES) $(OTESTFILES)

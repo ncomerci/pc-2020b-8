@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#include "netutils.h"
+#include "../interfaces/netutils.h"
 
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 

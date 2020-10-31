@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <check.h>
-#include "tests.h"
-#include "request.h"
+#include "../interfaces/tests.h"
+#include "../interfaces/request.h"
 
 #define FIXBUF(b, data)                 \
     buffer_init(&(b), N(data), (data)); \
