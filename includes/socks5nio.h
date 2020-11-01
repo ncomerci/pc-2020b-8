@@ -19,7 +19,8 @@
 #include "netutils.h"
 #include "selector.h"
 
-#define ATTACHMENT(key) 
+#define N(x) (sizeof(x)/sizeof((x)[0]))
+#define ATTACHMENT(key) ( (struct socks5 *)(key)->data)
 /** handler del socket pasivo que atiende conexiones socks5 **/
 void socksv5_passive_accept(struct selector_key *key);
 

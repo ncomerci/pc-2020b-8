@@ -1,9 +1,5 @@
 #include "../includes/socks5nio.h"
 
-
-
-#define N(x) (sizeof(x)/sizeof((x)[0]))
-
 enum socks_v5state {
     /*
         TODO: completar explicaciones!
@@ -20,9 +16,9 @@ enum socks_v5state {
 };
 
 struct hello_st {
-    buffer      *rb, *wb;
-    struct      hello_parser parser;
-    uint8_t     method;
+    buffer             *rb, *wb;
+    struct hello_parser parser;
+    uint8_t             method;
 };
 
 struct request_st {
@@ -42,9 +38,9 @@ struct request_st {
 };
 
 struct connecting {
-    buffer      *wb;
-    const int   *client_fd;
-    int         *origin_fd;
+    buffer                  *wb;
+    const int               *client_fd;
+    int                     *origin_fd;
     enum socks_reply_status *status;
 };
 
@@ -137,7 +133,18 @@ static struct socks5 *socks5_new(int client_fd){
     ret->client_fd = client_fd;
     ret->client_addr_len = sizeof(ret->client_addr);
 
-    //TODO: unfinished
+    //TODO: falta completar...
+
+    return ret;
+}
+
+// callback del parser utilizado en 'read_hello'
+static void on_hello_method(struct hello_parser *p, const uint8_t method) {
+    uint8_t *selected = p->data;
+
+    if(method == METHOD_NO_AUTHENTICATION_REQUIRED) {
+        *selected = method;
+    }
 }
 
 // inicializa las variables de los estados HELLO_...
@@ -453,6 +460,39 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d) 
     }
 
     // TODO: falta completar...
+
+    if(connect(*fd, (const struct sockaddr*)&ATTACHMENT(key)->origin_addr, 
+        ATTACHMENT(key)->origin_addr_len) == -1) {
+    
+        if(errno == EINPROGRESS) {
+            // hay que esperar a la conexión
+
+            // dejamos de pollear el socket del cliente
+            selector_status st = selector_set_interest_key(key, OP_NOOP);
+            if(st != SELECTOR_SUCCESS) {
+                error = true;
+                goto finally;
+            }
+
+            // esperamos la conexión en el nuevo socket
+            st = selector_register(key->s, *fd, &socks5_handler, OP_WRITE, key->data);
+
+            if(st != SELECTOR_SUCCESS) {
+                error = true;
+                goto finally;
+            }
+            ATTACHMENT(key)->references += 1;
+        }
+        else {
+            status = errno_to_socks(errno);
+            error = true;
+            goto finally;
+        }
+            
+    }
+
+    // TODO: falta completar...
+
     return 0;
 }
 
