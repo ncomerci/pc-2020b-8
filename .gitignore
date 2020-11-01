@@ -55,4 +55,4 @@ test/*.o
 #VSCode
 .vscode/
 
-a.out
+*.out
