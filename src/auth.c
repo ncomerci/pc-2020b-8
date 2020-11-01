@@ -1,5 +1,7 @@
 #include "../includes/auth.h"
 
+//TODO: Free memory allocated with calloc
+
 void auth_parser_init(struct auth_parser *p)
 {
     p->state = auth_version;
