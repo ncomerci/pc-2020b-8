@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include <assert.h>
 
-#include "../interfaces/buffer.h" //asdasd
+#include "../includes/buffer.h" //asdasd
 
 inline void
 buffer_reset(buffer *b) {
