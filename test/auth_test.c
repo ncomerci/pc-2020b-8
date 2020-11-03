@@ -21,7 +21,7 @@ START_TEST(test_auth_normal)
         0x04, // ulen
         0x67, 0x65, 0x72, 0x6f, //user (gero)
         0x04, // passlen
-        0x01, 0x02, 0x03, 0x04 //pass
+        0x31, 0x32, 0x33, 0x34, //pass
     };
     buffer b;
     FIXBUF(b, data);
@@ -43,6 +43,21 @@ suite(void)
     TCase *tc_normal = tcase_create("auth_normal");
     tcase_add_test(tc_normal, test_auth_normal);
     suite_add_tcase(s, tc_normal);
+
+    // Unsupported socks version test case
+    TCase *tc_unsupported_version = tcase_create("auth_unsupported_version");
+    tcase_add_test(tc_unsupported_version, test_auth_unsupported_version);
+    suite_add_tcase(s, tc_unsupported_version);
+
+    // Invalid username length test case
+    TCase *tc_auth_invalid_ulen = tcase_create("auth_invalid_ulen");
+    tcase_add_test(tc_auth_invalid_ulen, test_auth_invalid_ulen);
+    suite_add_tcase(s, tc_auth_invalid_ulen);
+
+    // Invalid password length test case
+    TCase *tc_auth_invalid_plen = tcase_create("auth_invalid_plen");
+    tcase_add_test(tc_auth_invalid_plen, test_auth_invalid_plen);
+    suite_add_tcase(s, tc_auth_invalid_plen);
 
     return s;
 }
