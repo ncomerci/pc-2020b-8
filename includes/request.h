@@ -8,6 +8,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "buffer.h"
+#define MAX_FQDN_SIZE 0xFF
 
 enum request_state
 {
@@ -45,7 +46,7 @@ enum socks_atyp
 
 union socks_addr
 {
-    char fqdn[0xFF];
+    char fqdn[MAX_FQDN_SIZE];
     struct sockaddr_in ipv4;
     struct sockaddr_in6 ipv6;
 };

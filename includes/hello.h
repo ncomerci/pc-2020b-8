@@ -47,4 +47,9 @@ enum hello_state hello_consume(buffer *b, struct hello_parser *p, bool *error);
  * seleccionado.
 **/
 int hello_marshal(buffer *b, const uint8_t method);
+
+bool hello_is_done(const enum hello_state state, bool *error);
+
+void hello_parser_close(struct hello_parser *p);
+
 #endif

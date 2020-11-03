@@ -113,6 +113,18 @@ static unsigned       pool_size = 0; // tamaño actual
 static struct socks5 *pool = 0;
 
 static const struct state_definition *socks_describe_status(void);
+static void socks5_destroy(struct socks5* state);
+static void socksv5_write(struct selector_key *key);
+static void socksv5_read(struct selector_key *key);
+static void socksv5_block(struct selector_key *key);
+static void socksv5_close(struct selector_key *key);
+
+const struct fd_handler socks5_handler = {
+    .handle_read = socksv5_read,
+    .handle_write = socksv5_write,
+    .handle_block = socksv5_block,
+    .handle_close = socksv5_close,
+};
 
 static struct socks5 *socks5_new(int client_fd){
     struct socks5 *ret;
@@ -125,22 +137,59 @@ static struct socks5 *socks5_new(int client_fd){
         ret->next = 0;
     }
     if(ret == NULL){
-        goto finally;
+       return NULL;
     }
     memset(ret,0x00, sizeof(*ret));
 
     ret->origin_fd = -1;
     ret->client_fd = client_fd;
     ret->client_addr_len = sizeof(ret->client_addr);
-
     //TODO: falta completar...
-
+    stm_init(&(ret->stm));
     return ret;
 }
 
+
+
+/** handler del socket pasivo que atiende conexiones socks5 **/
+void socksv5_passive_accept(struct selector_key *key){
+    struct sockaddr_storage client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    struct socks5 *state = NULL;
+
+    const int client = accept(key->fd, (struct sockaddr*) &client_addr, &client_addr_len);
+    if(client == -1){
+        goto fail;
+    }
+    if(selector_fd_set_nio(client) == -1){
+        goto fail;
+    }
+    state = socks5_new(client);
+    if(state == NULL){
+        // TODO: no aceptar conexiones hasta que se libere alguna
+        goto fail;
+    }
+    memcpy(&state->client_addr, &client_addr,client_addr_len);
+    state->client_addr_len = client_addr_len;
+    if(SELECTOR_SUCCESS != selector_register(key->s,client,&socks5_handler,OP_READ,state)){
+        goto fail;
+    }
+    return;
+fail:
+    if(client != -1){
+        close(client);
+    }
+    socks5_destroy(state);
+}
+
+/** libera pools internos **/
+void socksv5_pool_destroy(void){
+
+}
 // callback del parser utilizado en 'read_hello'
-static void on_hello_method(struct hello_parser *p, const uint8_t method) {
-    uint8_t *selected = p->data;
+static void on_hello_method(void *p, const uint8_t method) {
+    struct hello_parser * parser = (struct hello_parser *) p;
+    uint8_t *selected = parser->data;
 
     if(method == METHOD_NO_AUTHENTICATION_REQUIRED) {
         *selected = method;
@@ -154,7 +203,8 @@ static void hello_read_init(const unsigned state, struct selector_key *key) {
     d->rb = &(ATTACHMENT(key)->read_buffer);
     d->wb = &(ATTACHMENT(key)->write_buffer);
     d->parser.data = &d->method;
-    d->parser.on_authentication_method = on_hello_method, hello_parser_init(&d->parser);
+    d->parser.on_authentication_method = on_hello_method;
+    hello_parser_init(&d->parser);
 }
 
 static unsigned hello_process(const struct hello_st *d);
@@ -400,6 +450,7 @@ static unsigned request_process(struct selector_key *key, struct request_st *d) 
 Realiza la resolución de DNS bloqueante.
 Una vez resuelto notifica al selector para que el evento esté disponible en la próxima iteración
 */
+//TODO: cambiar para cuando usemos DoH
 static void * request_resolv_blocking(void *data) {
     struct selector_key *key = (struct selector_key *) data;
     struct socks5 *s = ATTACHMENT(key);
@@ -447,6 +498,7 @@ static unsigned request_resolv_done(struct selector_key *key) {
     return request_connect(key, d);
 }
 
+
 // intenta establecer una conexión con el origin server
 static unsigned request_connect(struct selector_key *key, struct request_st *d) {
     bool error = false;
@@ -492,7 +544,7 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d) 
     }
 
     // TODO: falta completar...
-
+finally:
     return 0;
 }
 
@@ -551,6 +603,8 @@ static fd_interest copy_compute_interests(fd_selector s, struct copy *d) {
     // TODO: falta completar...
     return ret;
 }
+static unsigned copy_r(struct selector_key *key);
+static unsigned copy_w(struct selector_key *key);
 
 // definición de handlers para cada estado
 static const struct state_definition client_statbl[] = {
@@ -563,15 +617,17 @@ static const struct state_definition client_statbl[] = {
     }, {
         .state              = HELLO_WRITE,
         .on_write_ready     = hello_write,
-    }, {
-        .state              = AUTH_READ,
-        .on_arrival         = auth_init,
-        .on_departure       = auth_read_close,
-        .on_read_ready      = auth_read,
-    }, {
-        .state              = AUTH_WRITE,
-        .on_write_ready     = auth_write
-    }, {
+    }, 
+    // {
+    //     .state              = AUTH_READ,
+    //     .on_arrival         = auth_init,
+    //     .on_departure       = auth_read_close,
+    //     .on_read_ready      = auth_read,
+    // }, {
+    //     .state              = AUTH_WRITE,
+    //     .on_write_ready     = auth_write
+    // }, 
+    {
         .state              = REQUEST_READ,
         .on_arrival         = request_init,
         .on_departure       = request_read_close,
@@ -604,7 +660,9 @@ static const struct state_definition *socks5_describe_states(void) {
 
 // Handlers top level de la conexión pasiva.
 // son los que emiten los eventos a la máquina de estados.
-static void socksv5_done(struct selector_key *key);
+static void socksv5_done(struct selector_key *key){
+
+}
 
 static void socksv5_read(struct selector_key *key) {
     struct state_machine *stm = &ATTACHMENT(key)->stm;
@@ -633,6 +691,11 @@ static void socksv5_block(struct selector_key *key) {
     }
 }
 
+//TODO: finish socks5_destroy
+static void socks5_destroy(struct socks5* state){
+
+}
+
 static void socksv5_close(struct selector_key *key) {
     socks5_destroy(ATTACHMENT(key));
 }
@@ -645,7 +708,7 @@ static void socks5_done(struct selector_key *key) {
 
     for(unsigned i = 0; i < N(fds) ; i++) {
         if(fds[i] != -1) {
-            if(SELECTOR_SUCCESS != selector_unregistered_fd(key->s, fds[i])) {
+            if(SELECTOR_SUCCESS != selector_unregister_fd(key->s, fds[i])) {
                 abort();
             }
             close(fds[i]);

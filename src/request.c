@@ -223,3 +223,13 @@ bool request_is_done(const enum request_state state, bool *error)
     }
     return ret;
 }
+
+//TODO: finish
+enum socks_reply_status errno_to_socks(int e){
+    return 3;
+}
+
+//TODO: finish
+void request_close(request_parser *p){
+
+}
