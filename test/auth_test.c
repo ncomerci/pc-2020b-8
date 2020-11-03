@@ -5,6 +5,8 @@
 #include "../includes/tests.h"
 #include "../includes/auth.h"
 
+// solve
+
 #define FIXBUF(b, data)                 \
     buffer_init(&(b), N(data), (data)); \
     buffer_write_adv(&(b), N(data))
