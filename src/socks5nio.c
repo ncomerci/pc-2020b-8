@@ -118,6 +118,68 @@ static void socksv5_write(struct selector_key *key);
 static void socksv5_read(struct selector_key *key);
 static void socksv5_block(struct selector_key *key);
 static void socksv5_close(struct selector_key *key);
+static unsigned copy_r(struct selector_key *key);
+static unsigned copy_w(struct selector_key *key);
+static void hello_read_init(const unsigned state, struct selector_key *key);
+static void hello_read_close(const unsigned state, struct selector_key *key);
+static unsigned hello_read(struct selector_key *key);
+static unsigned hello_write(struct selector_key *key);
+static void request_init(const unsigned state, struct selector_key *key);
+static void request_read_close(const unsigned state, struct selector_key *key);
+static unsigned request_read(struct selector_key *key);
+static unsigned request_resolv_done(struct selector_key *key);
+static void request_connecting_init(const unsigned state, struct selector_key *key);
+static unsigned request_connecting(struct selector_key *key);
+static unsigned request_write(struct selector_key *key);
+static void copy_init(const unsigned state, struct selector_key *key);
+
+// definición de handlers para cada estado
+static const struct state_definition client_statbl[] = {
+    
+    {
+        .state              = HELLO_READ,
+        .on_arrival         = hello_read_init,
+        .on_departure       = hello_read_close,
+        .on_read_ready      = hello_read,
+    }, {
+        .state              = HELLO_WRITE,
+        .on_write_ready     = hello_write,
+    }, 
+    // {
+    //     .state              = AUTH_READ,
+    //     .on_arrival         = auth_init,
+    //     .on_departure       = auth_read_close,
+    //     .on_read_ready      = auth_read,
+    // }, {
+    //     .state              = AUTH_WRITE,
+    //     .on_write_ready     = auth_write
+    // }, 
+    {
+        .state              = REQUEST_READ,
+        .on_arrival         = request_init,
+        .on_departure       = request_read_close,
+        .on_read_ready      = request_read,
+    }, {
+        .state              = REQUEST_RESOLV,
+        .on_block_ready     = request_resolv_done,
+    }, {
+        .state              = REQUEST_CONNECTING,
+        .on_arrival         = request_connecting_init,
+        .on_write_ready     = request_connecting,
+    }, {
+        .state              = REQUEST_WRITE,
+        .on_write_ready     = request_write,
+    }, {
+        .state              = COPY,
+        .on_arrival         = copy_init,
+        .on_read_ready      = copy_r,
+        .on_write_ready     = copy_w,
+    }, {
+        .state              = DONE,
+    }, {
+        .state              = ERROR,
+    }
+};
 
 const struct fd_handler socks5_handler = {
     .handle_read = socksv5_read,
@@ -145,7 +207,13 @@ static struct socks5 *socks5_new(int client_fd){
     ret->client_fd = client_fd;
     ret->client_addr_len = sizeof(ret->client_addr);
     //TODO: falta completar...
+    ret->stm.states = client_statbl;
+    ret->stm.initial = HELLO_READ;
+    ret->stm.max_state = ERROR;
     stm_init(&(ret->stm));
+
+    buffer_init(&ret->read_buffer, N(ret->raw_buff_a), ret->raw_buff_a);
+    buffer_init(&ret->write_buffer, N(ret->raw_buff_b), ret->raw_buff_b);
     return ret;
 }
 
@@ -187,9 +255,8 @@ void socksv5_pool_destroy(void){
 
 }
 // callback del parser utilizado en 'read_hello'
-static void on_hello_method(void *p, const uint8_t method) {
-    struct hello_parser * parser = (struct hello_parser *) p;
-    uint8_t *selected = parser->data;
+static void on_hello_method(void * data, const uint8_t method) {
+    uint8_t *selected = (uint8_t *)data;
 
     if(method == METHOD_NO_AUTHENTICATION_REQUIRED) {
         *selected = method;
@@ -203,8 +270,7 @@ static void hello_read_init(const unsigned state, struct selector_key *key) {
     d->rb = &(ATTACHMENT(key)->read_buffer);
     d->wb = &(ATTACHMENT(key)->write_buffer);
     d->parser.data = &d->method;
-    d->parser.on_authentication_method = on_hello_method;
-    hello_parser_init(&d->parser);
+    d->parser.on_authentication_method = on_hello_method,hello_parser_init(&d->parser);
 }
 
 static unsigned hello_process(const struct hello_st *d);
@@ -349,7 +415,7 @@ static unsigned request_write(struct selector_key *key){
     ssize_t n;
     ptr = buffer_read_ptr(b, &count);
     n = send(key->fd, ptr, count,MSG_NOSIGNAL);
-    if(n = -1){
+    if(n == -1){
         ret = ERROR;
     }
     else{
@@ -362,7 +428,7 @@ static unsigned request_write(struct selector_key *key){
             }
         }
     }
-    
+    return ret;
 }
 
 static unsigned request_connect(struct selector_key *key, struct request_st *d);
@@ -407,13 +473,14 @@ static unsigned request_process(struct selector_key *key, struct request_st *d) 
                     break;
                 }
                 case domainname_type: {
-                    struct selector_key *k = malloc(sizeof(*key));
+                    struct selector_key *k = (struct selector_key *) malloc(sizeof(*key));
                     if(k == NULL) {
                         ret = REQUEST_WRITE;
                         d->status = status_general_socks_server_failure;
                         selector_set_interest_key(key, OP_WRITE);
                     }
                     else {
+                        // TODO: change when migration to DoH
                         memcpy(k, key, sizeof(*k));
                         if(pthread_create(&tid, 0, request_resolv_blocking, k) == -1) {
                             ret = REQUEST_WRITE;
@@ -436,7 +503,9 @@ static unsigned request_process(struct selector_key *key, struct request_st *d) 
             break;
         
         case cmd_bind:
+        // Unsupported
         case cmd_udp:
+        // Unsupported
         default:
             d->status = status_command_not_supported;
             ret = REQUEST_WRITE;
@@ -504,7 +573,8 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d) 
     bool error = false;
     enum socks_reply_status status = d->status;
     int *fd = d->origin_fd;
-
+    const char *err_msg = NULL;
+    unsigned ret = REQUEST_CONNECTING;
     *fd = socket(ATTACHMENT(key)->origin_domain, SOCK_STREAM, 0);
     if(*fd == -1) {
         error = true;
@@ -512,7 +582,13 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d) 
     }
 
     // TODO: falta completar...
-
+    
+    if (selector_fd_set_nio(*fd) == -1)
+    {
+        err_msg = "getting server ipv4 socket flags";
+        goto finally;
+    }
+    // TERMINA NUEVO CODIGO
     if(connect(*fd, (const struct sockaddr*)&ATTACHMENT(key)->origin_addr, 
         ATTACHMENT(key)->origin_addr_len) == -1) {
     
@@ -545,7 +621,7 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d) 
 
     // TODO: falta completar...
 finally:
-    return 0;
+    return ret;
 }
 
 static void request_read_close(const unsigned state, struct selector_key *key) {
@@ -566,7 +642,7 @@ static void request_connecting_init(const unsigned state, struct selector_key *k
     d->wb        = &ATTACHMENT(key)->write_buffer;
 }
 
-// la conexión ha sido establecida (o falló)
+// la conexión ha sido establecida (o falló), parsear respuesta
 static unsigned request_connecting(struct selector_key *key) {
     int error;
     socklen_t len = sizeof(error);
@@ -603,56 +679,7 @@ static fd_interest copy_compute_interests(fd_selector s, struct copy *d) {
     // TODO: falta completar...
     return ret;
 }
-static unsigned copy_r(struct selector_key *key);
-static unsigned copy_w(struct selector_key *key);
 
-// definición de handlers para cada estado
-static const struct state_definition client_statbl[] = {
-    
-    {
-        .state              = HELLO_READ,
-        .on_arrival         = hello_read_init,
-        .on_departure       = hello_read_close,
-        .on_read_ready      = hello_read,
-    }, {
-        .state              = HELLO_WRITE,
-        .on_write_ready     = hello_write,
-    }, 
-    // {
-    //     .state              = AUTH_READ,
-    //     .on_arrival         = auth_init,
-    //     .on_departure       = auth_read_close,
-    //     .on_read_ready      = auth_read,
-    // }, {
-    //     .state              = AUTH_WRITE,
-    //     .on_write_ready     = auth_write
-    // }, 
-    {
-        .state              = REQUEST_READ,
-        .on_arrival         = request_init,
-        .on_departure       = request_read_close,
-        .on_read_ready      = request_read,
-    }, {
-        .state              = REQUEST_RESOLV,
-        .on_block_ready     = request_resolv_done,
-    }, {
-        .state              = REQUEST_CONNECTING,
-        .on_arrival         = request_connecting_init,
-        .on_write_ready     = request_connecting,
-    }, {
-        .state              = REQUEST_WRITE,
-        .on_write_ready     = request_write,
-    }, {
-        .state              = COPY,
-        .on_arrival         = copy_init,
-        .on_read_ready      = copy_r,
-        .on_write_ready     = copy_w,
-    }, {
-        .state              = DONE,
-    }, {
-        .state              = ERROR,
-    }
-};
 
 static const struct state_definition *socks5_describe_states(void) {
     return client_statbl;

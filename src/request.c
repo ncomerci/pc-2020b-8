@@ -226,6 +226,8 @@ bool request_is_done(const enum request_state state, bool *error)
 
 //TODO: finish
 enum socks_reply_status errno_to_socks(int e){
+    //TODO
+    printf("errno: %d",e);
     return 3;
 }
 

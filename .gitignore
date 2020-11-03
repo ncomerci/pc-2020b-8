@@ -58,3 +58,5 @@ test/*.o
 *.out
 
 server_iterativo
+
+.gdb_history
