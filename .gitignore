@@ -56,3 +56,5 @@ test/*.o
 .vscode/
 
 *.out
+
+server_iterativo
