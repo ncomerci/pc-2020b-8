@@ -5,8 +5,26 @@
 void auth_parser_init(struct auth_parser *p)
 {
     p->state = auth_version;
-    memset(p->usr, 0, sizeof(*(p->usr)));
-    memset(p->pass, 0, sizeof(*(p->pass)));
+    /* reservo espacio para la estructura de usuario */
+    p->usr = malloc(sizeof(*p->usr));
+    if(p->usr == NULL){
+        p->state = auth_error;
+        return;
+    }
+    /* inicializo las variables */
+    p->usr->ulen = 0;
+    p->usr->uname = 0; 
+
+    /* reservo espacio para la estructura de usuario */
+    p->pass = malloc(sizeof(*p->pass));
+    if(p->pass == NULL){
+        p->state = auth_error;
+        return;
+    }
+    /* inicializo las variables */
+    p->pass->plen = 0;
+    p->pass->passwd = 0;  
+
     p->remaining = 0;
     p->read = 0;
 }
