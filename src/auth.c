@@ -47,7 +47,7 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
         if(b <= 0)
         {
             p->state = auth_error_invalid_ulen;
-            return p->state;
+            return;
         }
 
         remaining_set(p, b);
@@ -60,7 +60,7 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
         if(p->usr->uname == NULL)
         {
             p->state = auth_error;
-            return p->state;
+            return;
         }
 
         p->state = auth_uname;
@@ -89,7 +89,7 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
         if(b <= 0)
         {
             p->state = auth_error_invalid_plen;
-            return p->state;
+            return;
         }
 
         remaining_set(p, b);
@@ -102,7 +102,7 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
         if(p->pass->passwd == NULL)
         {
             p->state = auth_error;
-            return p->state;
+            return;
         }
 
         p->state = auth_passwd;
