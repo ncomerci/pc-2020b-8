@@ -100,7 +100,7 @@ void request_close(request_parser *p);
 /** ensambla la respuesta del request dentro del buffer con el metodo 
  * seleccionado.
 **/
-int request_marshal(buffer *b, const enum socks_reply_status status);
+int request_marshal(buffer *b, const enum socks_reply_status status, const enum socks_atyp atyp, const union socks_addr addr, const in_port_t dest_port);
 
 enum socks_reply_status errno_to_socks(int e);
 
