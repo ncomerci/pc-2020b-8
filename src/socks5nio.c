@@ -646,9 +646,18 @@ static void request_connecting_init(const unsigned state, struct selector_key *k
 static unsigned request_connecting(struct selector_key *key) {
     int error;
     socklen_t len = sizeof(error);
+    unsigned ret = ERROR;
 
     // TODO: falta completar...
-    return 0;
+    struct socks5 *data = ATTACHMENT(key);
+    int *fd = data->orig.conn.origin_fd;
+    if(getsockopt(*fd, SOL_SOCKET, SO_ERROR, &error, &len) == 0){ 
+        if(error == 0){
+            selector_set_interest(key->s, *data->orig.conn.client_fd, OP_READ);
+            ret = REQUEST_WRITE;
+        }
+    }
+    return ret;
 }
 
 static void copy_init(const unsigned state, struct selector_key *key) {
