@@ -15,7 +15,7 @@ CFLAGS = -Wall -Wextra -pedantic -pedantic-errors -pthread \
 all: socks5d tests
 
 socks5d: $(OFILES)
-	$(CC) $(OFILES) $(CFLAGS)
+	$(CC) $(OFILES) $(CFLAGS) -o socks5d
 
 tests: 
 	cd test; make all;

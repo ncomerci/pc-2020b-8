@@ -60,3 +60,5 @@ test/*.o
 server_iterativo
 
 .gdb_history
+
+socks5d
