@@ -736,6 +736,8 @@ static unsigned request_connecting(struct selector_key *key)
             data->client.request.status = status_succeeded;
             if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
             {
+                // setear  *data->orig.conn.origin_fd en OP_READ ?
+                selector_set_interest(key->s, *data->orig.conn.origin_fd, OP_READ);
                 ret = REQUEST_WRITE;
             }
         }
