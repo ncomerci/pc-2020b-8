@@ -224,14 +224,72 @@ bool request_is_done(const enum request_state state, bool *error)
     return ret;
 }
 
-//TODO: finish
 enum socks_reply_status errno_to_socks(int e){
-    //TODO
-    printf("errno: %d",e);
-    return 3;
+    enum socks_reply_status ret = status_general_socks_server_failure;
+
+    switch(e) {
+        case 0:
+            ret = status_succeeded;
+            break;
+        case ECONNREFUSED:
+            ret = status_connection_refused;
+            break;
+        case EHOSTUNREACH:
+            ret = status_host_unreachable;
+            break;
+        case ENETUNREACH:
+            ret = status_network_unreachable;
+            break;
+        case ETIMEDOUT:
+            ret = status_ttl_expired;
+            break;
+    }
+
+    return ret;
 }
 
-//TODO: finish
-void request_close(request_parser *p){
+enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **originaddr, socklen_t *originlen, int *domain) {
+    enum socks_reply_status ret = status_general_socks_server_failure;
 
+    *domain                 = AF_INET;
+    struct sockaddr *addr   = 0x00;
+    socklen_t addrlen       = 0;
+
+    switch(request->dest_addr_type) {
+        case domainname_type: {
+            struct hostent *hp = gethostbyname(request->dest_addr.fqdn);
+            if(hp == 0) {
+                memset(&request->dest_addr, 0x00, sizeof(request->dest_addr));
+                break;
+            }
+            request->dest_addr.ipv4.sin_family = hp->h_addrtype;
+            memcpy((char *)&request->dest_addr.ipv4.sin_addr, *hp->h_addr_list, hp->h_length);
+        }
+        // no break
+        case ipv4_type: {
+            *domain = AF_INET;
+            addr = (struct sockaddr *)&(request->dest_addr.ipv4);
+            addrlen = sizeof(request->dest_addr.ipv4);
+            request->dest_addr.ipv4.sin_port = request->dest_port;
+            break;
+        }
+        case ipv6_type: {
+            *domain = AF_INET6;
+            addr = (struct sockaddr *)&(request->dest_addr.ipv6);
+            addrlen = sizeof(request->dest_addr.ipv6);
+            request->dest_addr.ipv6.sin6_port = request->dest_port;
+            break;
+        }
+        default:
+            return status_address_type_not_supported;
+    }
+
+    *originaddr = addr;
+    *originlen = addrlen;
+
+    return ret;
+}
+
+void request_close(request_parser *p){
+    // nada que hacer
 }

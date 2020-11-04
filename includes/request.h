@@ -7,6 +7,7 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <errno.h>
 #include "buffer.h"
 #define MAX_FQDN_SIZE 0xFF
 
@@ -106,5 +107,5 @@ enum socks_reply_status errno_to_socks(int e);
 #include <netdb.h>
 #include <arpa/inet.h>
 
-enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **originaddr, socklen_t *originallen, int *domain);
+enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **originaddr, socklen_t *originlen, int *domain);
 #endif
