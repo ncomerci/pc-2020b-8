@@ -853,11 +853,11 @@ static fd_interest copy_compute_interests(fd_selector s, struct copy *d)
 {
     fd_interest ret = OP_NOOP;
 
-    if (((d->duplex & OP_READ) && buffer_can_read(d->rb)) || buffer_is_compacted(d->rb))
+    if (((d->duplex & OP_READ) && buffer_can_write(d->rb)) )
     {
         ret |= OP_READ;
     }
-    if ((d->duplex & OP_WRITE) && buffer_can_write(d->wb) && !buffer_is_compacted(d->wb))
+    if ((d->duplex & OP_WRITE) && buffer_can_read(d->wb) )
     {
         ret |= OP_WRITE;
     }
