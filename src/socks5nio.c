@@ -650,8 +650,6 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
         goto finally;
     }
 
-    // TODO: falta completar...
-
     if (selector_fd_set_nio(*fd) == -1)
     {
         err_msg = "getting server ipv4 socket flags";
@@ -692,7 +690,6 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
         }
     }
 
-    // TODO: falta completar...
 finally:
     return ret;
 }
