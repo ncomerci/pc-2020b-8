@@ -856,11 +856,11 @@ static fd_interest copy_compute_interests(fd_selector s, struct copy *d)
 {
     fd_interest ret = OP_NOOP;
 
-    if ((d->duplex & OP_READ) && buffer_can_read(d->rb))
+    if (((d->duplex & OP_READ) && buffer_can_read(d->rb)) || d->rb->read == d->rb->data && d->rb->write == d->rb->data)
     {
         ret |= OP_READ;
     }
-    if ((d->duplex & OP_WRITE) && buffer_can_write(d->wb))
+    if ((d->duplex & OP_WRITE) && buffer_can_write(d->wb) && !(d->wb->read == d->wb->data && d->wb->write == d->wb->data) )
     {
         ret |= OP_WRITE;
     }
@@ -915,7 +915,6 @@ static unsigned copy_r(struct selector_key *key)
     {
         buffer_write_adv(b, n);
     }
-
     copy_compute_interests(key->s, d);
     copy_compute_interests(key->s, d->other);
     if (d->duplex == OP_NOOP)
