@@ -145,5 +145,8 @@ buffer_can_read(buffer *b);
 bool
 buffer_can_write(buffer *b);
 
+/** retorna true si el buffer está compactado */
+bool buffer_is_compacted(buffer *b);
+
 
 #endif

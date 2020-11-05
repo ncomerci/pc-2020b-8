@@ -101,3 +101,7 @@ buffer_compact(buffer *b) {
         b->write = b->data + n;
     }
 }
+
+inline bool buffer_is_compacted(buffer *b) {
+    return b->read == b->data && b->write == b->data;
+}
