@@ -8,6 +8,7 @@
 
 static const uint8_t METHOD_NO_AUTHENTICATION_REQUIRED = 0x00;
 static const uint8_t METHOD_NO_ACCEPTABLE_METHODS = 0xFF;
+static const uint8_t METHOD_USERNAME_PASSWORD = 0x02;
 
 enum hello_state
 {
