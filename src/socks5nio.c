@@ -762,11 +762,11 @@ static void request_connecting_init(const unsigned state, struct selector_key *k
 static unsigned request_connect(struct selector_key *key, struct request_st *d)
 {
     bool error = false;
-    enum socks_reply_status status = d->status;
+    struct socks5 *data = ATTACHMENT(key);
     int *fd = d->origin_fd;
     const char *err_msg = NULL;
     unsigned ret = REQUEST_CONNECTING;
-    *fd = socket(ATTACHMENT(key)->origin_domain, SOCK_STREAM, 0);
+    *fd = socket(data->origin_domain, SOCK_STREAM, 0);
     if (*fd == -1)
     {
         error = true;
@@ -779,8 +779,8 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
         goto finally;
     }
 
-    if (connect(*fd, (const struct sockaddr *)&ATTACHMENT(key)->origin_addr,
-                ATTACHMENT(key)->origin_addr_len) == -1)
+    if (connect(*fd, (const struct sockaddr *)&data->origin_addr,
+                data->origin_addr_len) == -1)
     {
 
         if (errno == EINPROGRESS)
@@ -803,12 +803,27 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
                 error = true;
                 goto finally;
             }
-            ATTACHMENT(key)->references += 1;
+            data->references += 1;
         }
         else
         {
-            status = errno_to_socks(errno);
-            error = true;
+            data->client.request.status = errno_to_socks(errno);
+            if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
+            {
+                selector_set_interest(key->s, data->client_fd, OP_WRITE);
+                // registro el nuevo fd pero lo seteo en NOOP porque no se pudo establecer la conexión
+                selector_status st = selector_register(key->s, *fd, &socks5_handler, OP_NOOP, key->data);
+                if (st != SELECTOR_SUCCESS)
+                {
+                    error = true;
+                    goto finally;
+                }
+
+                ret = REQUEST_WRITE;
+            }
+            else {
+                error = true;
+            }   
             goto finally;
         }
     }
