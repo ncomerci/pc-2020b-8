@@ -635,6 +635,26 @@ static unsigned request_resolv_done(struct selector_key *key)
     return request_connect(key, d);
 }
 
+static void request_read_close(const unsigned state, struct selector_key *key)
+{
+    struct request_st *d = &ATTACHMENT(key)->client.request;
+
+    request_close(&d->parser);
+}
+
+////////////////////////////////////////////////////////////////////
+// REQUEST CONNECT
+////////////////////////////////////////////////////////////////////
+static void request_connecting_init(const unsigned state, struct selector_key *key)
+{
+    struct connecting *d = &ATTACHMENT(key)->orig.conn;
+
+    d->client_fd = &ATTACHMENT(key)->client_fd;
+    d->origin_fd = &ATTACHMENT(key)->origin_fd;
+    d->status = &ATTACHMENT(key)->client.request.status;
+    d->wb = &ATTACHMENT(key)->write_buffer;
+}
+
 // intenta establecer una conexión con el origin server
 static unsigned request_connect(struct selector_key *key, struct request_st *d)
 {
@@ -655,7 +675,7 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
         err_msg = "getting server ipv4 socket flags";
         goto finally;
     }
-    // TERMINA NUEVO CODIGO
+
     if (connect(*fd, (const struct sockaddr *)&ATTACHMENT(key)->origin_addr,
                 ATTACHMENT(key)->origin_addr_len) == -1)
     {
@@ -694,26 +714,6 @@ finally:
     return ret;
 }
 
-static void request_read_close(const unsigned state, struct selector_key *key)
-{
-    struct request_st *d = &ATTACHMENT(key)->client.request;
-
-    request_close(&d->parser);
-}
-
-////////////////////////////////////////////////////////////////////
-// REQUEST CONNECT
-////////////////////////////////////////////////////////////////////
-static void request_connecting_init(const unsigned state, struct selector_key *key)
-{
-    struct connecting *d = &ATTACHMENT(key)->orig.conn;
-
-    d->client_fd = &ATTACHMENT(key)->client_fd;
-    d->origin_fd = &ATTACHMENT(key)->origin_fd;
-    d->status = &ATTACHMENT(key)->client.request.status;
-    d->wb = &ATTACHMENT(key)->write_buffer;
-}
-
 // la conexión ha sido establecida (o falló), parsear respuesta
 static unsigned request_connecting(struct selector_key *key)
 {
@@ -721,24 +721,31 @@ static unsigned request_connecting(struct selector_key *key)
     socklen_t len = sizeof(error);
     unsigned ret = REQUEST_CONNECTING;
 
-    // TODO: falta completar...
     struct socks5 *data = ATTACHMENT(key);
     int *fd = data->orig.conn.origin_fd;
     if (getsockopt(*fd, SOL_SOCKET, SO_ERROR, &error, &len) == 0)
     {
+        //Escribirle en el buffer de escritura al cliente
+        selector_set_interest(key->s, *data->orig.conn.client_fd, OP_WRITE);
+        
         if (error == 0)
         {
-            selector_set_interest(key->s, *data->orig.conn.client_fd, OP_WRITE);
-            //Escribirle en el buffer de escritura al cliente
             data->client.request.status = status_succeeded;
-            if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
-            {
-                // setear  *data->orig.conn.origin_fd en OP_READ ?
-                selector_set_interest(key->s, *data->orig.conn.origin_fd, OP_READ);
-                ret = REQUEST_WRITE;
-            }
         }
+        else {
+            data->client.request.status = errno_to_socks(error);
+        }
+
+        if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
+        {
+            selector_set_interest(key->s, *data->orig.conn.origin_fd, OP_READ);
+            ret = REQUEST_WRITE;
+        }
+        else {
+            ret = ERROR;
+        }    
     }
+
     return ret;
 }
 
@@ -836,19 +843,7 @@ Computa los intereses en base a la disponibilidad de los buffer.
 La variable duplex nos permite saber su alguna vía ya fue cerrada.
 Arranca OP_READ | OP_WRITE.
 */
-// struct copy
-// {
-//     /** el otro fd **/
-//     int *fd;
 
-//     /** buffers para hacer la copia **/
-//     buffer *rb, *wb;
-
-//     /** chequear para saber si cerrar la escritura o la lectura **/
-//     fd_interest duplex;
-
-//     struct copy *other;
-// };
 static fd_interest copy_compute_interests(fd_selector s, struct copy *d)
 {
     fd_interest ret = OP_NOOP;
