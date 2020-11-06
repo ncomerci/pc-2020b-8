@@ -436,7 +436,7 @@ static void auth_init(const unsigned state, struct selector_key *key)
 static unsigned auth_process(const struct auth_st *d){
     unsigned ret = AUTH_WRITE;
     //TODO: not hardcode status, maybe check against existing usr/pass
-    if(auth_marshal(d->wb,0) == -1){
+    if(auth_marshal(d->wb,0x00) == -1){
         ret = ERROR;
     }
     return ret;
