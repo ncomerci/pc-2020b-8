@@ -43,7 +43,7 @@ user(char *s, struct users *user)
 static void
 version(void)
 {
-    fprintf(stderr, "socks5v version 0.0\n"
+    fprintf(stderr, "socks5v version 1.0\n"
                     "ITBA Protocolos de Comunicación 2020/2 -- Grupo 8\n"
                     "AQUI VA LA LICENCIA\n");
 }
@@ -62,11 +62,11 @@ usage(const char *progname)
             "   -u <name>:<pass> Usuario y contraseña de usuario que puede usar el proxy. Hasta 10.\n"
             "   -v               Imprime información sobre la versión versión y termina.\n"
             "\n"
-            "   --doh-ip    <ip>    \n"
-            "   --doh-port  <port>  XXX\n"
-            "   --doh-host  <host>  XXX\n"
-            "   --doh-path  <host>  XXX\n"
-            "   --doh-query <host>  XXX\n"
+            "   --doh-ip    <ip>    Establece la dirección del servidor DoH. Por defecto 127.0.0.1.\n"
+            "   --doh-port  <port>  Establece el puerto del servidor DoH. Por defecto 8053.\n"
+            "   --doh-host  <host>  Establece el valor del header Host. Por defecto localhost.\n"
+            "   --doh-path  <host>  Establece el path del request doh. por defecto /getnsrecord.\n"
+            "   --doh-query <host>  Establece el query string si el request DoH utiliza el método Doh por defecto ?dns=.\n"
 
             "\n",
             progname);
