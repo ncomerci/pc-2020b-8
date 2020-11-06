@@ -475,7 +475,6 @@ static unsigned auth_read(struct selector_key *key){
 static unsigned auth_write(struct selector_key *key){
     struct auth_st * d = &ATTACHMENT(key)->client.auth;
     unsigned ret = AUTH_WRITE;
-    bool error = false;
     uint8_t *ptr;
     size_t count;
     ssize_t n;
@@ -795,7 +794,7 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
     }
 
 finally:
-    return ret;
+    return error ? ERROR : ret;
 }
 
 static void request_read_close(const unsigned state, struct selector_key *key)
