@@ -3,6 +3,7 @@
 
 #include <sys/time.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 /**
  * selector.c - un muliplexor de entrada salida
@@ -135,6 +136,46 @@ typedef struct fd_handler {
   void (*handle_close)     (struct selector_key *key);
 
 } fd_handler;
+
+struct item
+{
+    int fd;
+    fd_interest interest;
+    const fd_handler *handler;
+    void *data;
+};
+
+struct fdselector
+{
+    // almacenamos en una jump table donde la entrada es el file descriptor.
+    // Asumimos que el espacio de file descriptors no va a ser esparso; pero
+    // esto podría mejorarse utilizando otra estructura de datos
+    struct item *fds;
+    size_t fd_size; // cantidad de elementos posibles de fds
+
+    /** fd maximo para usar en select() */
+    int max_fd; // max(.fds[].fd)
+
+    /** descriptores prototipicos ser usados en select */
+    fd_set master_r, master_w;
+    /** para ser usado en el select() (recordar que select cambia el valor) */
+    fd_set slave_r, slave_w;
+
+    /** timeout prototipico para usar en select() */
+    struct timespec master_t;
+    /** tambien select() puede cambiar el valor */
+    struct timespec slave_t;
+
+    // notificaciónes entre blocking jobs y el selector
+    volatile pthread_t selector_thread;
+    /** protege el acceso a resolutions jobs */
+    pthread_mutex_t resolution_mutex;
+    /**
+     * lista de trabajos blockeantes que finalizaron y que pueden ser
+     * notificados.
+     */
+    struct blocking_job *resolution_jobs;
+};
 
 /**
  * registra en el selector `s' un nuevo file descriptor `fd'.

@@ -284,7 +284,7 @@ fail:
     {
         close(client);
     }
-    socks5_destroy(state);
+    socksv5_close(key);
 }
 
 /** libera pools internos **/
@@ -811,8 +811,7 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
             if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
             {
                 selector_set_interest(key->s, data->client_fd, OP_WRITE);
-                // registro el nuevo fd pero lo seteo en NOOP porque no se pudo establecer la conexión
-                selector_status st = selector_register(key->s, *fd, &socks5_handler, OP_NOOP, key->data);
+                selector_status st = selector_register(key->s, *fd, &socks5_handler, OP_NOOP, key->data); // registro el nuevo fd pero lo seteo en NOOP porque no se pudo establecer la conexión
                 if (st != SELECTOR_SUCCESS)
                 {
                     error = true;
@@ -947,13 +946,21 @@ static void socksv5_block(struct selector_key *key)
 }
 
 //TODO: finish socks5_destroy
-static void socks5_destroy(struct socks5 *state)
-{
-}
+// static void socks5_destroy(struct socks5 *state) {
+//     if(state != NULL) {
+//         free(state);
+//     }
+// }
 
 static void socksv5_close(struct selector_key *key)
 {
-    socks5_destroy(ATTACHMENT(key));
+    if(key->data != NULL) {
+        int origin_fd = ATTACHMENT(key)->origin_fd;
+        free(key->data);
+        key->data = NULL;
+        key->s->fds[origin_fd].data = NULL;
+    }
+    // socks5_destroy(ATTACHMENT(key));
 }
 
 /*
