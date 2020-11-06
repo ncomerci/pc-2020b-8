@@ -132,7 +132,6 @@ static unsigned pool_size = 0;       // tamaño actual
 static struct socks5 *pool = 0;
 
 static const struct state_definition *socks_describe_status(void);
-static void socks5_destroy(struct socks5 *state);
 static void socksv5_write(struct selector_key *key);
 static void socksv5_read(struct selector_key *key);
 static void socksv5_block(struct selector_key *key);
@@ -945,13 +944,6 @@ static void socksv5_block(struct selector_key *key)
     }
 }
 
-//TODO: finish socks5_destroy
-// static void socks5_destroy(struct socks5 *state) {
-//     if(state != NULL) {
-//         free(state);
-//     }
-// }
-
 static void socksv5_close(struct selector_key *key)
 {
     if(key->data != NULL) {
@@ -960,7 +952,6 @@ static void socksv5_close(struct selector_key *key)
         key->data = NULL;
         key->s->fds[origin_fd].data = NULL;
     }
-    // socks5_destroy(ATTACHMENT(key));
 }
 
 /*
