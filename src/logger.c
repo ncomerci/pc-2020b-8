@@ -31,10 +31,7 @@ static char* user_to_string(struct log_info* socks_info){
         return "----";
     }
     else{
-        char* username = (char*) malloc((socks_info->user_info->ulen+1)*sizeof(char));
-        memcpy(username,socks_info->user_info->uname,socks_info->user_info->ulen);
-        username[socks_info->user_info->ulen] = '\0';
-        return username;
+        return (char*) socks_info->user_info.uname;
     }
 }
 

@@ -435,9 +435,6 @@ static void auth_init(const unsigned state, struct selector_key *key)
     d->rb = &(ATTACHMENT(key)->read_buffer);
     d->wb = &(ATTACHMENT(key)->write_buffer);
     auth_parser_init(&d->parser);
-    d->parser.usr = d->usr;
-    d->parser.pass = d->pass;
-    // ATTACHMENT(key)->socks_info.user_info = &d->parser.usr;
 }
 
 static unsigned auth_process(const struct auth_st *d){
@@ -466,7 +463,7 @@ static unsigned auth_read(struct selector_key *key){
             if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
             {
                 ret = auth_process(d);
-                ATTACHMENT(key)->socks_info.user_info = &d->parser.usr;
+                memcpy(&ATTACHMENT(key)->socks_info.user_info,&d->parser.usr,sizeof(d->parser.usr));
                 
             }
             else{

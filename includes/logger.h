@@ -14,7 +14,7 @@
 
 struct log_info{
     uint8_t method;
-    struct usr * user_info;
+    struct usr user_info;
     enum socks_reply_status status;
     enum socks_atyp atyp;
     struct sockaddr_storage client_addr;
