@@ -974,7 +974,9 @@ static void socksv5_close(struct selector_key *key)
         int origin_fd = ATTACHMENT(key)->origin_fd;
         free(key->data);
         key->data = NULL;
-        key->s->fds[origin_fd].data = NULL;
+        if(origin_fd > 0) {
+            key->s->fds[origin_fd].data = NULL;
+        }
     }
 }
 
