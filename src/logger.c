@@ -46,12 +46,10 @@ static char* dest_addr_to_string(struct log_info socks_info){
     case ipv4_type:
         ip = (char *)malloc(INET_ADDRSTRLEN * sizeof(char));
         inet_ntop(AF_INET,&socks_info.dest_addr.ipv4.sin_addr, ip, INET_ADDRSTRLEN);
-        // printf("ipv4 port: %d\n",socks_info.dest_addr.ipv4.sin_port);
         break;
     case ipv6_type:
         ip = (char *)malloc(INET6_ADDRSTRLEN * sizeof(char));
         inet_ntop(AF_INET6,&socks_info.dest_addr.ipv6.sin6_addr, ip, INET6_ADDRSTRLEN);
-        // printf("ipv6 port: %d\n",socks_info.dest_addr.ipv6.sin6_port);
         break;
     case domainname_type:
         ip = (char *)malloc((strlen(socks_info.dest_addr.fqdn)+1) * sizeof(char));
@@ -68,10 +66,7 @@ void log_access(struct log_info socks_info){
     char ret[length];
     ip_to_string(socks_info.client_addr, ret,length);
     char * dest_ip = dest_addr_to_string(socks_info);
-    // printf("%d\n",socks_info.user_info->uname);
-    // char * user = socks_info.method == METHOD_NO_AUTHENTICATION_REQUIRED ? "----" : (char*) socks_info.user_info->uname;
-    // printf("user: %s\n",user);
-    fprintf(stdout,"[%s]    %s    A    %s    %u    %s    %u\n", date, user_to_string(&socks_info), ret, addr_port(socks_info.client_addr), dest_ip, socks_info.dest_port);
+    fprintf(stdout,"[%s]    %s    A    %s    %u    %s    %u\n", date, user_to_string(&socks_info), ret, ntohs(addr_port(socks_info.client_addr)), dest_ip, ntohs(socks_info.dest_port));
     free(dest_ip);
 }
 // config en runtime -> cambiar tamaño de buffers
