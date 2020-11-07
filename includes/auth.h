@@ -9,7 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "buffer.h"
-
+#define MAX_USR_PASS_SIZE 0XFF
 
 /* estados posibles del parser de autenticación */
 enum auth_state
@@ -31,26 +31,28 @@ enum auth_state
     
 };
 
+struct usr {
+    uint8_t ulen;
+    uint8_t uname[MAX_USR_PASS_SIZE];
+};
+
+struct pass {
+    uint8_t plen;
+    uint8_t passwd[MAX_USR_PASS_SIZE];
+};
+
 typedef struct auth_parser
 {
     enum auth_state state;
 
-    struct usr *usr;
-    struct pass *pass;
+    struct usr usr;
+    struct pass pass;
 
     uint8_t remaining;
     uint8_t read;
 } auth_parser ;
 
-struct usr {
-    uint8_t ulen;
-    uint8_t * uname;
-};
 
-struct pass {
-    uint8_t plen;
-    uint8_t * passwd;
-};
 
 
 
@@ -72,6 +74,7 @@ bool auth_is_done(const enum auth_state state, bool *error);
 **/
 int auth_marshal(buffer *b, const uint8_t status);
 
+void auth_parser_close(struct auth_parser *p);
 
 
 #endif

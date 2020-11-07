@@ -181,6 +181,21 @@ int main(const int argc, char **argv)
         err_msg = "registering ipv6 fd";
         goto finally;
     }
+    // const struct fd_handler stdout_handler = {
+    //     .handle_read = socksv5_passive_accept,
+    //     .handle_write = NULL,
+    //     .handle_close = NULL, // nada que liberar
+    // };
+
+    // ss = selector_register(selector, 1, &socksv5, OP_READ, NULL);
+
+    // if (ss != SELECTOR_SUCCESS)
+    // {
+    //     err_msg = "registering write fd";
+    //     goto finally;
+    // }
+    // //register selector for non blockng stdout
+
     for (; !done;)
     {
         err_msg = NULL;

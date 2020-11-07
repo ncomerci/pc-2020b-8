@@ -6,24 +6,28 @@ void auth_parser_init(struct auth_parser *p)
 {
     p->state = auth_version;
     /* reservo espacio para la estructura de usuario */
-    p->usr = malloc(sizeof(*p->usr));
-    if(p->usr == NULL){
+    // p->usr = malloc(sizeof(*p->usr));
+    memset(&p->usr, 0, sizeof(p->usr));
+    // memset(p->usr, 0, sizeof(*p->usr));
+    if(&p->usr == NULL){
         p->state = auth_error;
         return;
     }
     /* inicializo las variables */
-    p->usr->ulen = 0;
-    p->usr->uname = 0; 
+    // p->usr->ulen = 0;
+    // p->usr->uname = 0; 
 
     /* reservo espacio para la estructura de usuario */
-    p->pass = malloc(sizeof(*p->pass));
-    if(p->pass == NULL){
+    // p->pass = malloc(sizeof(*p->pass));
+    memset(&p->pass, 0, sizeof(p->pass));
+    // memset(p->pass, 0, sizeof(*p->pass));
+    if(&p->pass == NULL){
         p->state = auth_error;
         return;
     }
     /* inicializo las variables */
-    p->pass->plen = 0;
-    p->pass->passwd = 0;  
+    // p->pass->plen = 0;
+    // p->pass->passwd = 0;  
 
     p->remaining = 0;
     p->read = 0;
@@ -69,17 +73,22 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
         }
 
         remaining_set(p, b);
-        p->usr->ulen = b;
-
+        p->usr.ulen = b;
+        // p->usr->ulen = b;
         //dejamos espacio reservado para el '\0'
-        p->usr->uname = (uint8_t *)calloc( p->usr->ulen + 1, sizeof(*p->usr->uname));
+        // p->usr->uname = (uint8_t *)calloc( p->usr->ulen + 1, sizeof(*p->usr->uname));
         
         //verificamos si se reservó el espacio efectivamente
-        if(p->usr->uname == NULL)
+        if(p->usr.uname == NULL)
         {
             p->state = auth_error;
             return p->state;
         }
+        // if(p->usr->uname == NULL)
+        // {
+        //     p->state = auth_error;
+        //     return p->state;
+        // }
 
         p->state = auth_uname;
         break;
@@ -87,12 +96,16 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
 
     case auth_uname:
 
-        *( (p->usr->uname) + p->read ) = b; //check if casting is needed "(uint8_t *)"
+        *( (p->usr.uname) + p->read ) = b; //check if casting is needed "(uint8_t *)"
+        // *( (p->usr->uname) + p->read ) = b; //check if casting is needed "(uint8_t *)"
+
         p->read++;
     
         if (remaining_is_done(p))
         {
-            *( (p->usr->uname) + p->read ) = '\0';
+            *( (p->usr.uname) + p->read ) = '\0';
+            // *( (p->usr->uname) + p->read ) = '\0';
+
             p->state = auth_plen;
         }
         else
@@ -111,30 +124,38 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
         }
 
         remaining_set(p, b);
-        p->pass->plen = b;
-
+        p->pass.plen = b;
+        // p->pass->plen = b;
         //dejamos espacio reservado para el '\0'
-        p->pass->passwd = (uint8_t *)calloc( p->pass->plen + 1, sizeof(*p->pass->passwd));
+        // p->pass->passwd = (uint8_t *)calloc( p->pass->plen + 1, sizeof(*p->pass->passwd));
         
         //verificamos si se reservó el espacio efectivamente
-        if(p->pass->passwd == NULL)
+        if(p->pass.passwd == NULL)
         {
             p->state = auth_error;
             return p->state;
         }
-
+        // if(p->pass->passwd == NULL)
+        // {
+        //     p->state = auth_error;
+        //     return p->state;
+        // }
         p->state = auth_passwd;
         break;
 
 
     case auth_passwd:
 
-        *( (p->pass->passwd) + p->read ) = b; //check if casting is needed "(uint8_t *)"
+        *( (p->pass.passwd) + p->read ) = b; //check if casting is needed "(uint8_t *)"
+        // *( (p->pass->passwd) + p->read ) = b; //check if casting is needed "(uint8_t *)"
+
         p->read++;
     
         if (remaining_is_done(p))
         {
-            *( (p->pass->passwd) + p->read ) = '\0';
+            *( (p->pass.passwd) + p->read ) = '\0';
+            // *( (p->pass->passwd) + p->read ) = '\0';
+
             p->state = auth_done;
         }
         else
@@ -212,7 +233,10 @@ int auth_marshal(buffer *b, const uint8_t status)
 }
 
 
-
+void auth_parser_close(struct auth_parser *p){
+    // free(p->usr);
+    // free(p->pass);
+}
 
 
 

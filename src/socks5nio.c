@@ -110,6 +110,8 @@ struct socks5
         struct copy copy;
     } orig;
 
+    struct log_info socks_info;
+    
     /** buffers para write y read **/
     uint8_t raw_buff_a[MAX_BUFF_SIZE], raw_buff_b[MAX_BUFF_SIZE];
     buffer read_buffer, write_buffer;
@@ -146,7 +148,7 @@ static unsigned hello_write(struct selector_key *key);
 static void auth_init(const unsigned state, struct selector_key *key);
 static unsigned auth_read(struct selector_key *key);
 static unsigned auth_write(struct selector_key *key);
-// static void auth_read_close(const unsigned state, struct selector_key *key);
+static void auth_read_close(const unsigned state, struct selector_key *key);
 static void request_init(const unsigned state, struct selector_key *key);
 static void request_read_close(const unsigned state, struct selector_key *key);
 static unsigned request_read(struct selector_key *key);
@@ -172,7 +174,7 @@ static const struct state_definition client_statbl[] = {
     {
         .state              = AUTH_READ,
         .on_arrival         = auth_init,
-        // .on_departure       = auth_read_close,
+        .on_departure       = auth_read_close,
         .on_read_ready      = auth_read,
     }, {
         .state              = AUTH_WRITE,
@@ -247,6 +249,7 @@ static struct socks5 *socks5_new(int client_fd)
 
     buffer_init(&ret->read_buffer, N(ret->raw_buff_a), ret->raw_buff_a);
     buffer_init(&ret->write_buffer, N(ret->raw_buff_b), ret->raw_buff_b);
+    
     return ret;
 }
 
@@ -274,6 +277,7 @@ void socksv5_passive_accept(struct selector_key *key)
     }
     memcpy(&state->client_addr, &client_addr, client_addr_len);
     state->client_addr_len = client_addr_len;
+    state->socks_info.client_addr = client_addr;
     if (SELECTOR_SUCCESS != selector_register(key->s, client, &socks5_handler, OP_READ, state))
     {
         goto fail;
@@ -336,6 +340,8 @@ static unsigned hello_read(struct selector_key *key)
             if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
             {
                 ret = hello_process(d);
+                ATTACHMENT(key)->socks_info.method = d->method;
+
             }
             else
             {
@@ -430,9 +436,11 @@ static void auth_init(const unsigned state, struct selector_key *key)
     d->rb = &(ATTACHMENT(key)->read_buffer);
     d->wb = &(ATTACHMENT(key)->write_buffer);
     auth_parser_init(&d->parser);
-    d->parser.usr = &d->usr;
-    d->parser.pass = &d->pass;
+    d->parser.usr = d->usr;
+    d->parser.pass = d->pass;
+    // ATTACHMENT(key)->socks_info.user_info = &d->parser.usr;
 }
+
 static unsigned auth_process(const struct auth_st *d){
     unsigned ret = AUTH_WRITE;
     //TODO: not hardcode status, maybe check against existing usr/pass
@@ -459,6 +467,8 @@ static unsigned auth_read(struct selector_key *key){
             if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
             {
                 ret = auth_process(d);
+                ATTACHMENT(key)->socks_info.user_info = &d->parser.usr;
+                
             }
             else{
                 ret = ERROR;
@@ -495,9 +505,10 @@ static unsigned auth_write(struct selector_key *key){
     return ret;
 }
 
-// static void auth_read_close(const unsigned state, struct selector_key *key){
-
-// }
+static void auth_read_close(const unsigned state, struct selector_key *key){
+    struct auth_st *d = &ATTACHMENT(key)->client.auth;
+    auth_parser_close(&d->parser);
+}
 
 ////////////////////////////////////////////////////////////////////////
 // REQUEST
@@ -519,6 +530,7 @@ static void request_init(const unsigned state, struct selector_key *key)
     d->origin_addr = &ATTACHMENT(key)->origin_addr;
     d->origin_addr_len = &ATTACHMENT(key)->origin_addr_len;
     d->origin_domain = &ATTACHMENT(key)->origin_domain;
+
 }
 
 static unsigned request_process(struct selector_key *key, struct request_st *d);
@@ -582,6 +594,7 @@ static unsigned request_write(struct selector_key *key)
             {
                 ret = ERROR;
             }
+            log_access(ATTACHMENT(key)->socks_info);
         }
     }
     return ret;
@@ -610,7 +623,7 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
 
     case cmd_connect:
         // esto mejoraría enormemente de haber usado sockaddr_storage en el request
-
+        ATTACHMENT(key)->socks_info.atyp = d->request.dest_addr_type;
         switch (d->request.dest_addr_type)
         {
         case ipv4_type:
@@ -620,6 +633,10 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
             ATTACHMENT(key)->origin_addr_len = sizeof(d->request.dest_addr.ipv4);
             memcpy(&ATTACHMENT(key)->origin_addr, &d->request.dest_addr,
                    sizeof(d->request.dest_addr.ipv4));
+            memcpy(&ATTACHMENT(key)->socks_info.dest_addr, &d->request.dest_addr,
+                   sizeof(d->request.dest_addr.ipv4));
+            ATTACHMENT(key)->socks_info.dest_port = d->request.dest_port;
+
             ret = request_connect(key, d);
             break;
         }
@@ -630,6 +647,11 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
             ATTACHMENT(key)->origin_addr_len = sizeof(d->request.dest_addr.ipv6);
             memcpy(&ATTACHMENT(key)->origin_addr, &d->request.dest_addr,
                    sizeof(d->request.dest_addr.ipv6));
+            
+            memcpy(&ATTACHMENT(key)->socks_info.dest_addr, &d->request.dest_addr,
+                   sizeof(d->request.dest_addr.ipv6));
+            ATTACHMENT(key)->socks_info.dest_port = d->request.dest_port;
+
             ret = request_connect(key, d);
             break;
         }
@@ -641,6 +663,7 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
                 ret = REQUEST_WRITE;
                 d->status = status_general_socks_server_failure;
                 selector_set_interest_key(key, OP_WRITE);
+                ATTACHMENT(key)->socks_info.status = d->status;
             }
             else
             {
@@ -651,11 +674,14 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
                     ret = REQUEST_WRITE;
                     d->status = status_general_socks_server_failure;
                     selector_set_interest_key(key, OP_WRITE);
+                    ATTACHMENT(key)->socks_info.status = d->status;
                 }
                 else
                 {
                     ret = REQUEST_RESOLV;
                     selector_set_interest_key(key, OP_NOOP);
+                    memcpy(ATTACHMENT(key)->socks_info.dest_addr.fqdn,d->request.dest_addr.fqdn,sizeof(d->request.dest_addr.fqdn));
+                    ATTACHMENT(key)->socks_info.dest_port = d->request.dest_port;
                 }
             }
             break;
@@ -807,6 +833,7 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
         }
         else
         {
+            // If connection is unsuccessful, send error to user
             data->client.request.status = errno_to_socks(errno);
             if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
             {

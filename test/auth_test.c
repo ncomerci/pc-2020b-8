@@ -30,8 +30,8 @@ START_TEST(test_auth_normal)
     bool errored = false;
     enum auth_state st = auth_consume(&b, &parser, &errored);
     ck_assert_uint_eq(false, errored);
-    ck_assert_str_eq("gero", parser.usr->uname);
-    ck_assert_str_eq("1234", parser.pass->passwd);
+    ck_assert_str_eq("gero", parser.usr.uname);
+    ck_assert_str_eq("1234", parser.pass.passwd);
     ck_assert_uint_eq(auth_done, st);
 }
 END_TEST
