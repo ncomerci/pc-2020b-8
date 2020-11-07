@@ -840,12 +840,13 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
                     error = true;
                     goto finally;
                 }
-
+                
                 ret = REQUEST_WRITE;
             }
             else {
                 error = true;
-            }   
+            }
+            ATTACHMENT(key)->socks_info.status = data->client.request.status;   
             goto finally;
         }
     }
@@ -879,11 +880,13 @@ static unsigned request_connecting(struct selector_key *key)
         if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
         {
             selector_set_interest(key->s, *data->orig.conn.origin_fd, OP_READ);
+            
             ret = REQUEST_WRITE;
         }
         else {
             ret = ERROR;
-        }    
+        }
+        ATTACHMENT(key)->socks_info.status = data->client.request.status;    
     }
 
     return ret;
@@ -1037,6 +1040,7 @@ static unsigned copy_r(struct selector_key *key)
     n = recv(key->fd, ptr, size, 0);
     if (n <= 0)
     {
+        // Si error o EOF cierro el canal de lectura y el canal de escritura del origin
         shutdown(*d->fd, SHUT_RD);
         d->duplex &= ~OP_READ;
         if (*d->other->fd != -1)
@@ -1048,6 +1052,9 @@ static unsigned copy_r(struct selector_key *key)
     else
     {
         buffer_write_adv(b, n);
+        /*
+        http_sniff_stm(ATTACHMENT(key)->hs);
+        */
     }
     copy_compute_interests(key->s, d);
     copy_compute_interests(key->s, d->other);

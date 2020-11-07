@@ -66,7 +66,7 @@ void log_access(struct log_info socks_info){
     char ret[length];
     ip_to_string(socks_info.client_addr, ret,length);
     char * dest_ip = dest_addr_to_string(socks_info);
-    fprintf(stdout,"[%s]    %s    A    %s    %u    %s    %u\n", date, user_to_string(&socks_info), ret, ntohs(addr_port(socks_info.client_addr)), dest_ip, ntohs(socks_info.dest_port));
+    fprintf(stdout,"[%s]    %s    A    %s    %u    %s    %u    status=%d\n", date, user_to_string(&socks_info), ret, ntohs(addr_port(socks_info.client_addr)), dest_ip, ntohs(socks_info.dest_port),socks_info.status);
     free(dest_ip);
 }
 // config en runtime -> cambiar tamaño de buffers
