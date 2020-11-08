@@ -21,6 +21,7 @@
 #include "auth.h"
 #include "logger.h"
 #include "httpsniff.h"
+#include "pop3sniff.h"
 
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 #define ATTACHMENT(key) ( (struct socks5 *)(key)->data)
