@@ -106,5 +106,15 @@ struct dns_parser{
 
 
 
+void doh_http_parser_init(struct http_parser *p, int length);
+
+enum http_state doh_http_parser_feed(http_parser *p, uint8_t b);
+
+enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b);
+
+enum doh_state doh_consume(buffer *b, auth_parser *p, bool *error);
+
+bool doh_is_done(const enum doh_state state, bool *error);
+
 
 #endif
