@@ -51,6 +51,13 @@ int main(const int argc, char **argv)
     selector_status ss = SELECTOR_SUCCESS;
     fd_selector selector = NULL;
 
+
+    if (selector_fd_set_nio(fileno(stdout)) == -1)
+    {
+        err_msg = "Non blocking stdout error";
+        goto finally;
+    }
+
     ///////////////////////////////////////////////////////////// IPv4
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));

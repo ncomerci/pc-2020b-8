@@ -103,6 +103,8 @@ struct socks5
         struct copy copy;
     } client;
 
+    struct http_sniffer http_sf;
+
     /** estados para el origin_fd **/
     union
     {
@@ -248,6 +250,7 @@ static struct socks5 *socks5_new(int client_fd)
 
     buffer_init(&ret->read_buffer, N(ret->raw_buff_a), ret->raw_buff_a);
     buffer_init(&ret->write_buffer, N(ret->raw_buff_b), ret->raw_buff_b);
+    http_sniff_init(&ret->http_sf);
     
     return ret;
 }
@@ -298,16 +301,18 @@ void socksv5_pool_destroy(void)
 static void on_hello_method(void *data, const uint8_t method)
 {
     uint8_t *selected = (uint8_t *)data;
-
-    if ((method == METHOD_NO_AUTHENTICATION_REQUIRED) || (method == METHOD_USERNAME_PASSWORD))
-    {
-        *selected = method;
+    if(*selected != METHOD_USERNAME_PASSWORD){
+        if ((method == METHOD_NO_AUTHENTICATION_REQUIRED) || (method == METHOD_USERNAME_PASSWORD))
+        {
+            *selected = method;
+        }
     }
 }
 
 // inicializa las variables de los estados HELLO_...
 static void hello_read_init(const unsigned state, struct selector_key *key)
 {
+    struct socks5 *data = ATTACHMENT(key);
     struct hello_st *d = &ATTACHMENT(key)->client.hello;
 
     d->rb = &(ATTACHMENT(key)->read_buffer);
@@ -590,7 +595,7 @@ static unsigned request_write(struct selector_key *key)
             {
                 ret = ERROR;
             }
-            log_access(ATTACHMENT(key)->socks_info);
+            log_access(&ATTACHMENT(key)->socks_info);
         }
     }
     return ret;
@@ -840,12 +845,13 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
                     error = true;
                     goto finally;
                 }
-
+                
                 ret = REQUEST_WRITE;
             }
             else {
                 error = true;
-            }   
+            }
+            ATTACHMENT(key)->socks_info.status = data->client.request.status;   
             goto finally;
         }
     }
@@ -879,33 +885,18 @@ static unsigned request_connecting(struct selector_key *key)
         if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
         {
             selector_set_interest(key->s, *data->orig.conn.origin_fd, OP_READ);
+            
             ret = REQUEST_WRITE;
         }
         else {
             ret = ERROR;
-        }    
+        }
+        ATTACHMENT(key)->socks_info.status = data->client.request.status;    
     }
 
     return ret;
 }
 
-static void copy_init(const unsigned state, struct selector_key *key)
-{
-    struct copy *d = &ATTACHMENT(key)->client.copy;
-
-    d->fd = &ATTACHMENT(key)->client_fd;
-    d->rb = &ATTACHMENT(key)->read_buffer;
-    d->wb = &ATTACHMENT(key)->write_buffer;
-    d->duplex = OP_READ | OP_WRITE;
-    d->other = &ATTACHMENT(key)->orig.copy;
-
-    d = &ATTACHMENT(key)->orig.copy;
-    d->fd = &ATTACHMENT(key)->origin_fd;
-    d->rb = &ATTACHMENT(key)->write_buffer;
-    d->wb = &ATTACHMENT(key)->read_buffer;
-    d->duplex = OP_READ | OP_WRITE;
-    d->other = &ATTACHMENT(key)->client.copy;
-}
 
 static const struct state_definition *socks5_describe_states(void)
 {
@@ -980,6 +971,28 @@ static void socksv5_close(struct selector_key *key)
     }
 }
 
+////////////////////////////////////////////////////////////////////////
+// COPY
+////////////////////////////////////////////////////////////////////////
+
+static void copy_init(const unsigned state, struct selector_key *key)
+{
+    struct copy *d = &ATTACHMENT(key)->client.copy;
+
+    d->fd = &ATTACHMENT(key)->client_fd;
+    d->rb = &ATTACHMENT(key)->read_buffer;
+    d->wb = &ATTACHMENT(key)->write_buffer;
+    d->duplex = OP_READ | OP_WRITE;
+    d->other = &ATTACHMENT(key)->orig.copy;
+
+    d = &ATTACHMENT(key)->orig.copy;
+    d->fd = &ATTACHMENT(key)->origin_fd;
+    d->rb = &ATTACHMENT(key)->write_buffer;
+    d->wb = &ATTACHMENT(key)->read_buffer;
+    d->duplex = OP_READ | OP_WRITE;
+    d->other = &ATTACHMENT(key)->client.copy;
+}
+
 /*
 Computa los intereses en base a la disponibilidad de los buffer.
 La variable duplex nos permite saber su alguna vía ya fue cerrada.
@@ -1021,6 +1034,9 @@ static struct copy *copy_ptr(struct selector_key *key)
 
     return d;
 }
+static bool is_origin(struct selector_key *key){
+    return key->fd == ATTACHMENT(key)->origin_fd;
+}
 
 // lee bytes de un socket y los encola para ser escritos en otro socket
 static unsigned copy_r(struct selector_key *key)
@@ -1037,6 +1053,7 @@ static unsigned copy_r(struct selector_key *key)
     n = recv(key->fd, ptr, size, 0);
     if (n <= 0)
     {
+        // Si error o EOF cierro el canal de lectura y el canal de escritura del origin
         shutdown(*d->fd, SHUT_RD);
         d->duplex &= ~OP_READ;
         if (*d->other->fd != -1)
@@ -1048,6 +1065,10 @@ static unsigned copy_r(struct selector_key *key)
     else
     {
         buffer_write_adv(b, n);
+        
+        if(key->fd == ATTACHMENT(key)->client_fd) {
+            http_sniff_stm(&ATTACHMENT(key)->socks_info, &ATTACHMENT(key)->http_sf, ptr, n);
+        }
     }
     copy_compute_interests(key->s, d);
     copy_compute_interests(key->s, d->other);

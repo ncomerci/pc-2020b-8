@@ -20,6 +20,7 @@
 #include "selector.h"
 #include "auth.h"
 #include "logger.h"
+#include "httpsniff.h"
 
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 #define ATTACHMENT(key) ( (struct socks5 *)(key)->data)
