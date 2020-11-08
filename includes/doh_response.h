@@ -29,8 +29,9 @@ IMPORTANTE CHEQUEAR EL ESTADO Y CONTENT-TYPE
 
 
 
-enum http_state
+enum doh_state
 {
+    // estados para el doh header
     doh_version,
     doh_status,
     doh_header,
@@ -40,25 +41,14 @@ enum http_state
     doh_check_content_type,
     doh_body,
 
-
-    // done section
-    //doh_done,
-
-    // error section
+    // errores para el doh header
     doh_error_version,
     doh_error_status,
     doh_error_header,
     doh_error_content_type_message,
     doh_error_content_lenght,
 
-};
-
-
-
-
-
-enum doh_state
-{
+    // estados para el doh body
     doh_dns_request_start,
     doh_dns_ancount,
     doh_dns_request_end,
@@ -70,7 +60,7 @@ enum doh_state
     // done section
     doh_done,
 
-    // error section
+    // errores para el doh body
     doh_error_request_lenght,
     doh_error,
 };
@@ -78,7 +68,7 @@ enum doh_state
 
 
 typedef struct http_parser{
-    enum http_state state;
+    enum doh_state state;
 
     int status; //200 caso de éxito, otro caso error
     uint16_t  contentLength; //tamaño del body -> tamaño de la respuesta DNS
@@ -109,8 +99,6 @@ Each resource record has the following format:
 
 
 struct dns_parser{
-    enum doh_state state;
-
     uint16_t rdlength;
     uint8_t * rdata;
 };
