@@ -103,6 +103,8 @@ struct socks5
         struct copy copy;
     } client;
 
+    struct http_sniffer http_sf;
+
     /** estados para el origin_fd **/
     union
     {
@@ -248,6 +250,7 @@ static struct socks5 *socks5_new(int client_fd)
 
     buffer_init(&ret->read_buffer, N(ret->raw_buff_a), ret->raw_buff_a);
     buffer_init(&ret->write_buffer, N(ret->raw_buff_b), ret->raw_buff_b);
+    http_sniff_init(&ret->http_sf);
     
     return ret;
 }
@@ -308,6 +311,7 @@ static void on_hello_method(void *data, const uint8_t method)
 // inicializa las variables de los estados HELLO_...
 static void hello_read_init(const unsigned state, struct selector_key *key)
 {
+    struct socks5 *data = ATTACHMENT(key);
     struct hello_st *d = &ATTACHMENT(key)->client.hello;
 
     d->rb = &(ATTACHMENT(key)->read_buffer);
@@ -590,7 +594,7 @@ static unsigned request_write(struct selector_key *key)
             {
                 ret = ERROR;
             }
-            log_access(ATTACHMENT(key)->socks_info);
+            log_access(&ATTACHMENT(key)->socks_info);
         }
     }
     return ret;
@@ -1052,9 +1056,10 @@ static unsigned copy_r(struct selector_key *key)
     else
     {
         buffer_write_adv(b, n);
-        /*
-        http_sniff_stm(ATTACHMENT(key)->hs);
-        */
+        
+        if(key->fd == ATTACHMENT(key)->client_fd) {
+            http_sniff_stm(&ATTACHMENT(key)->socks_info, &ATTACHMENT(key)->http_sf, ptr, n);
+        }
     }
     copy_compute_interests(key->s, d);
     copy_compute_interests(key->s, d->other);
