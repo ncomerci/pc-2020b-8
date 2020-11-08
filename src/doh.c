@@ -170,11 +170,11 @@ uint8_t * dns_query_generator (uint8_t * fqdn, int type){
         printf("%x ",dns_query[j]);
     }
 
-    printf("\n\n");
+    //printf("\n\n");
 
     char *dns_query_encoded = b64_encode(dns_query,DNS_QUERY_HEADER + strlen(dns_query_name) + 1 + DNS_QTYPE + DNS_QCLASS);
-    printf("QUERY ENCODED\n");
-    printf("%s\n", dns_query_encoded);
+    //printf("QUERY ENCODED\n");
+    //printf("%s\n", dns_query_encoded);
 
     free(dns_query);
 
@@ -204,34 +204,34 @@ Accept: application/dns-message
     args->doh.query = "?dns=";
     usamos estos valores para formar la query dns sobre http */
 
-uint8_t * http_query_generator(uint8_t * fqdn, int type){
+uint8_t * http_query_generator(uint8_t * fqdn, char * doh_host, char * doh_path, char * doh_query int type){
 
-
+    // Constantes que vamos a usar para armar el request
     char * doh_method = "GET ";
-    char * doh_path = "/getnsrecord";
-    char * doh_query = "?dns=";
-    char * dns_query_encoded = dns_query_generator(fqdn, type);
     char * doh_version = " HTTP/1.0\r\n";
     char * doh_host_name = "Host: ";
-    char * doh_host = "localhost\r\n";
     char * doh_accept_header = "Accept: application/dns-message\r\n";
-//int http_query_length = strlen()
-/*
+    /* Estas fueron usadas para testear
+    char * doh_path = "/getnsrecord";
+    char * doh_query = "?dns=";
+    char * doh_host = "localhost\r\n"; */
+    
+    // como el nombre del host no me viene con el \r\n, se lo agrego al final
+    strcat((char *)doh_host,"\r\n")    
 
-printf("%s\n", doh_method);
-printf("%ld\n", strlen(doh_method));*/
-
+    // Creo el request DNS y lo guardo en la variable dns_query_encoded
+    char * dns_query_encoded = dns_query_generator(fqdn, type);
+    // Calculo la longitud total del request DoH
     int http_query_length = strlen(doh_method) + strlen(doh_path) + strlen(doh_query) + strlen(dns_query_encoded)
                             + strlen(doh_version) + strlen(doh_host);
-    uint8_t * http_query = malloc(http_query_length);
-
-
-
+    
 /* The strcat() function appends the src string to the dest string,
        overwriting the terminating null byte ('\0') at the end of dest, and
        then adds a terminating null byte.
 --> strcpy escribe el null byte ('\0') al final del string pero luego con strcat lo sobreescribo
     */
+    uint8_t * http_query = malloc(http_query_length);
+
     strcpy((char *)http_query, doh_method);
     strcat((char *)http_query, doh_path);
     strcat((char *)http_query, doh_query);
@@ -241,22 +241,37 @@ printf("%ld\n", strlen(doh_method));*/
     strcat((char *)http_query, doh_host);
     strcat((char *)http_query, doh_accept_header);
 
-
+    /* Usado para testear que todo se este mandando correctamente
     printf("QUERY que se manda por HTTP\n");
-    printf("%s\n", http_query );
+    printf("%s\n", http_query ); */
 
     return http_query;
+}
 
 
+int doh_request_marshal(buffer *b, uint8_t  * fqdn, struct doh doh_request, int type) {
 
+    if (type!=0 && type!=1){
+        return -1;
+    }
+    size_t n;
+    uint8_t *buff = buffer_write_ptr(b, &n);
+    uint8_t * doh_request = http_query_generator (fqdn,doh_request.host, doh_request.path, doh_request.query, type);
+    int doh_request_length = strlen(doh_request);
+    if (n < doh_request_length)
+    {
+        return -1;
+    }
+    strcpy(buff,doh_request)
+    buffer_write_adv(b, doh_request_length);
+    return doh_request_length;
 }
 
 
 
-
+/* Usado para testear que este imprimiendo bien 
 
 int main(){
     uint8_t prueba[] = "www.itba.edu.ar";
     uint8_t * query = http_query_generator (prueba,0);
-
-}
+} */
