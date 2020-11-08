@@ -13,16 +13,16 @@
 
 /*
 HTTP Response Example
-	:status = 200
+:status = 200
    content-type = application/dns-message
    content-length = 61
    cache-control = max-age=3709
 
 PARSER HTTP: parsea la respuesta HTTP
-	- lo primero que quiero determinar es si el estado es igual a 200 -> si no hay un 200 LISTO, cierro la 	   	 conexión
-	- podríamos chequear que los primeros bytes sean HTTP
-	- para evitar NO tener chunked, lo primero que haría es hacer un request de 1.0 (con 1.0 no vamos a tener 	conexiones persistentes)
-	- después buscaría el content-type
+- lo primero que quiero determinar es si el estado es igual a 200 -> si no hay un 200 LISTO, cierro la   conexión
+- podríamos chequear que los primeros bytes sean HTTP
+- para evitar NO tener chunked, lo primero que haría es hacer un request de 1.0 (con 1.0 no vamos a tener conexiones persistentes)
+- después buscaría el content-type
 IMPORTANTE CHEQUEAR EL ESTADO Y CONTENT-TYPE
 
 */
@@ -42,18 +42,38 @@ enum http_state
 
 
     // done section
-    doh_done,
+    //doh_done,
 
     // error section
     doh_error_version,
     doh_error_status,
     doh_error_header,
-  	doh_error_content_type_message,
-  	doh_error_content_lenght,
-    
+    doh_error_content_type_message,
+    doh_error_content_lenght,
+
 };
 
 
+
+
+
+enum doh_state
+{
+    doh_dns_request_start,
+    doh_dns_ancount,
+    doh_dns_request_end,
+    doh_dns_answer_atts,
+    doh_dns_answer_rdlength,
+    doh_dns_answer_rdata,
+
+
+    // done section
+    doh_done,
+
+    // error section
+    doh_error_request_lenght,
+    doh_error,
+};
 
 
 
@@ -61,41 +81,40 @@ typedef struct http_parser{
     enum http_state state;
 
     int status; //200 caso de éxito, otro caso error
-    int contentLength; //tamaño del body -> tamaño de la respuesta DNS
-    bool contentType;
-	//struct dns_parser *answers; 
+    uint16_t  contentLength; //tamaño del body -> tamaño de la respuesta DNS
+    int contentType;
+    int anscount_aux;
+    struct dns_parser * answers;
+    int request_dns_length;
+    int aux_request_dns_length;
 
-	uint8_t headercounter;
-	uint8_t answerscounter;
-    uint8_t remaining;
-    uint8_t read;      
+    uint8_t headercounter;
+    uint16_t answerscounter;
+    uint16_t remaining;
+    uint8_t read;
 }http_parser;
 
 
-/* 
+/*
 Each resource record has the following format:
-	- NAME -> 	a domain name to which this resource record pertains.
-	- TYPE ->  	two octets containing one of the RR type codes.  This field specifies the meaning of the 				data in the RDATA field.
-	- CLASS -> 	two octets which specify the class of the data in the RDATA field.
-	- TTL -> 	a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource 				record may be cached before it should be discarded. (0 = no cached)
-	- RDLENGTH -> an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
-	- RDATA ->	a variable length string of octets that describes the resource.  The format of this 					information varies according to the TYPE and CLASS of the resource record.
+- NAME -> a domain name to which this resource record pertains.
+- TYPE ->   two octets containing one of the RR type codes.  This field specifies the meaning of the data in the RDATA field.
+- CLASS -> two octets which specify the class of the data in the RDATA field.
+- TTL -> a 32 bit unsigned integer that specifies the time interval (in seconds) that the resource record may be cached before it should be discarded. (0 = no cached)
+- RDLENGTH -> an unsigned 16 bit integer that specifies the length in octets of the RDATA field.
+- RDATA -> a variable length string of octets that describes the resource.  The format of this information varies according to the TYPE and CLASS of the resource record.
 */
 
 
-/*
+
 
 struct dns_parser{
-    enum dns_state state;
+    enum doh_state state;
 
-    char *name;        
-    uint16_t dnstype;   
-    uint16_t dnsclass; 
-    uint32_t TTL;       
-    uint16_t rdlength;  
-    char *rddata;       
+    uint16_t rdlength;
+    uint8_t * rdata;
 };
-*/
+
 
 
 
