@@ -298,10 +298,11 @@ void socksv5_pool_destroy(void)
 static void on_hello_method(void *data, const uint8_t method)
 {
     uint8_t *selected = (uint8_t *)data;
-
-    if ((method == METHOD_NO_AUTHENTICATION_REQUIRED) || (method == METHOD_USERNAME_PASSWORD))
-    {
-        *selected = method;
+    if(*selected != METHOD_USERNAME_PASSWORD){
+        if ((method == METHOD_NO_AUTHENTICATION_REQUIRED) || (method == METHOD_USERNAME_PASSWORD))
+        {
+            *selected = method;
+        }
     }
 }
 
@@ -892,23 +893,6 @@ static unsigned request_connecting(struct selector_key *key)
     return ret;
 }
 
-static void copy_init(const unsigned state, struct selector_key *key)
-{
-    struct copy *d = &ATTACHMENT(key)->client.copy;
-
-    d->fd = &ATTACHMENT(key)->client_fd;
-    d->rb = &ATTACHMENT(key)->read_buffer;
-    d->wb = &ATTACHMENT(key)->write_buffer;
-    d->duplex = OP_READ | OP_WRITE;
-    d->other = &ATTACHMENT(key)->orig.copy;
-
-    d = &ATTACHMENT(key)->orig.copy;
-    d->fd = &ATTACHMENT(key)->origin_fd;
-    d->rb = &ATTACHMENT(key)->write_buffer;
-    d->wb = &ATTACHMENT(key)->read_buffer;
-    d->duplex = OP_READ | OP_WRITE;
-    d->other = &ATTACHMENT(key)->client.copy;
-}
 
 static const struct state_definition *socks5_describe_states(void)
 {
@@ -983,6 +967,28 @@ static void socksv5_close(struct selector_key *key)
     }
 }
 
+////////////////////////////////////////////////////////////////////////
+// COPY
+////////////////////////////////////////////////////////////////////////
+
+static void copy_init(const unsigned state, struct selector_key *key)
+{
+    struct copy *d = &ATTACHMENT(key)->client.copy;
+
+    d->fd = &ATTACHMENT(key)->client_fd;
+    d->rb = &ATTACHMENT(key)->read_buffer;
+    d->wb = &ATTACHMENT(key)->write_buffer;
+    d->duplex = OP_READ | OP_WRITE;
+    d->other = &ATTACHMENT(key)->orig.copy;
+
+    d = &ATTACHMENT(key)->orig.copy;
+    d->fd = &ATTACHMENT(key)->origin_fd;
+    d->rb = &ATTACHMENT(key)->write_buffer;
+    d->wb = &ATTACHMENT(key)->read_buffer;
+    d->duplex = OP_READ | OP_WRITE;
+    d->other = &ATTACHMENT(key)->client.copy;
+}
+
 /*
 Computa los intereses en base a la disponibilidad de los buffer.
 La variable duplex nos permite saber su alguna vía ya fue cerrada.
@@ -1023,6 +1029,9 @@ static struct copy *copy_ptr(struct selector_key *key)
     }
 
     return d;
+}
+static bool is_origin(struct selector_key *key){
+    return key->fd == ATTACHMENT(key)->origin_fd;
 }
 
 // lee bytes de un socket y los encola para ser escritos en otro socket
