@@ -74,7 +74,7 @@ static void print_log(struct log_info *socks_info, char type) {
     }
     else if(type == 'P') {
         print = "[%s]\t%s\tP\t%s\t%s\t%u\t%s\t%s\n";
-        fprintf(stdout, print, date, user_to_string(socks_info), protocol_str[socks_info->protcol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
+        fprintf(stdout, print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
     }
     free(dest_ip);
 }

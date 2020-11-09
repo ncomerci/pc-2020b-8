@@ -5,6 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "buffer.h"
+#include "logger.h"
 #define MAX_BUFF_SIZE 2048
 #define MAX_SIZE_CRED 255
 
@@ -68,6 +69,8 @@ struct pop3_sniffer{
     char password[MAX_SIZE_CRED];
     uint8_t read;
     uint8_t remaining;
+    uint8_t check_read;
+    uint8_t check_remaining;
     bool parsing;
 };
 
@@ -79,5 +82,5 @@ bool pop3_is_done(struct pop3_sniffer *s);
 
 bool pop3_is_parsing(struct pop3_sniffer *s);
 
-enum pop3sniff_state pop3_consume(struct pop3_sniffer *s);
+enum pop3sniff_state pop3_consume(struct pop3_sniffer *s,struct log_info *log);
 #endif

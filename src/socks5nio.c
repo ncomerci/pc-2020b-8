@@ -1037,25 +1037,20 @@ static struct copy *copy_ptr(struct selector_key *key)
     return d;
 }
 static bool is_origin(struct selector_key *key){
-    // printf("cur fd: %d, origin fd: %d\n",key->fd,ATTACHMENT(key)->origin_fd);
     return key->fd == ATTACHMENT(key)->origin_fd;
 }
 
 static void pop3sniff(struct selector_key *key, uint8_t *ptr, ssize_t size){
 
     struct pop3_sniffer *s = &ATTACHMENT(key)->pop3sniffer;
-    // printf("---sniffing parser parsing: %d---\n",s->parsing);
     // Inicializo parser, si no lo estaba
     if(!pop3_is_parsing(s)){
-        // printf("init parser\n");
         pop3_sniffer_init(s);
     }
     if(!pop3_is_done(s)){
-        // printf("parsing not done\n");
         size_t count;
         uint8_t *pop3_ptr = buffer_write_ptr(&s->buffer,&count);
         // Pierdo info :/
-        // printf("size: %d count: %d\n",size,count);
         if(size <= count){
             memcpy(pop3_ptr,ptr,size);
             buffer_write_adv(&s->buffer,size);
@@ -1064,11 +1059,8 @@ static void pop3sniff(struct selector_key *key, uint8_t *ptr, ssize_t size){
             memcpy(pop3_ptr,ptr,count);
             buffer_write_adv(&s->buffer,count);
         }
-        pop3_consume(s);
-        // printf("state: %d\n",pop3_consume(s));
-        // printf("parser parsing: %d\n",s->parsing);
+        pop3_consume(s,&ATTACHMENT(key)->socks_info);
     }
-    // printf("-------\n");
 }
 
 // lee bytes de un socket y los encola para ser escritos en otro socket
@@ -1098,7 +1090,6 @@ static unsigned copy_r(struct selector_key *key)
     else
     {
         if(is_origin(key)){
-            // printf("fd: %d\n",key->fd);
             pop3sniff(key,ptr,n);
         }
         buffer_write_adv(b, n);
@@ -1143,7 +1134,6 @@ static unsigned copy_w(struct selector_key *key)
     else
     {
         if(is_origin(key)){
-            // printf("fd: %d\n",key->fd);
             pop3sniff(key,ptr,n);
         }
         buffer_read_adv(b, n);

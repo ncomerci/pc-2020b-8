@@ -30,7 +30,7 @@ struct log_info{
     //Sniffer
     char *user;
     char *passwd;
-    enum protocol protcol;
+    enum protocol protocol;
 };
 
 void log_access(struct log_info *socks_info);
