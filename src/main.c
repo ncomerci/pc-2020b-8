@@ -54,13 +54,9 @@ int main(const int argc, char **argv)
 
     const char *err_msg = NULL;
 
-    args = (struct socks5args *) malloc(sizeof(*args));
-    if(args == NULL){
-        err_msg = "unable allocate args struct";
-        goto finally;
-    }
 
-    parse_args(argc, argv, args);
+    parse_args2(argc, argv);
+    // parse_args(argc, argv, args);
 
     selector_status ss = SELECTOR_SUCCESS;
     fd_selector selector = NULL;
@@ -265,10 +261,11 @@ finally:
     }
     
     // free args struct
-    if(args != NULL){
-        free(args);
-    }
-
+    // if(args != NULL){
+    //     free(args);
+    // }
+    free_args();
+    
     if (selector != NULL)
     {
         selector_destroy(selector);

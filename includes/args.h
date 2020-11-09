@@ -42,4 +42,41 @@ struct socks5args
  */
 void parse_args(const int argc, char **argv, struct socks5args *args);
 
+void parse_args2(const int argc, char **argv);
+
+
+void free_args();
+
+// struct socks5args* get_args();
+
+char * get_args_socks_addr();
+
+unsigned short get_args_socks_port();
+
+struct users* get_args_users();
+
+bool get_args_disectors_enabled();
+
+char * get_args_doh_ip();
+void set_args_doh_ip(char * new_ip);
+
+char * get_args_doh_host();
+void set_args_doh_host(char * new_host);
+
+unsigned short get_args_doh_port();
+void set_args_doh_port(unsigned short new_port);
+
+char * get_args_doh_path();
+void set_args_doh_path(char * new_path);
+
+char *get_args_doh_query();
+void set_args_doh_query(char * new_query);
+
+int get_args_nusers();
+
+void set_args_nusers(int new_val);
+
+int add_new_user(char * user, char * pass);
+
+int rm_user(char * user);
 #endif

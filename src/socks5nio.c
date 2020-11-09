@@ -467,9 +467,12 @@ static void auth_init(const unsigned state, struct selector_key *key)
 }
 
 static uint8_t check_credentials(const struct auth_st *d){
-    struct socks5args * args = get_args_data();
-    for(int i = 0; i < args->nusers; i++){
-        if((strcmp(args->users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(args->users[i].pass,(char*)d->parser.pass.passwd) == 0)){
+    // struct socks5args * args = get_args_data();
+    int nusers = get_args_nusers();
+    struct users *users = get_args_users();
+
+    for(int i = 0; i < nusers; i++){
+        if((strcmp(users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(users[i].pass,(char*)d->parser.pass.passwd) == 0)){
             return AUTH_SUCCESS;
         }
     }
@@ -1130,7 +1133,7 @@ static unsigned copy_r(struct selector_key *key)
         // }
         buffer_write_adv(b, n);
         
-        if(key->fd == ATTACHMENT(key)->client_fd && get_args_data()->disectors_enabled) {
+        if(key->fd == ATTACHMENT(key)->client_fd && get_args_disectors_enabled()) {
             http_sniff_stm(&ATTACHMENT(key)->socks_info, &ATTACHMENT(key)->http_sf, ptr, n);
         }
     }
@@ -1169,7 +1172,7 @@ static unsigned copy_w(struct selector_key *key)
     }
     else
     {
-        if(is_origin(key) && get_args_data()->disectors_enabled){
+        if(is_origin(key) && get_args_disectors_enabled()){
             pop3sniff(key,ptr,n);
         }
         buffer_read_adv(b, n);
