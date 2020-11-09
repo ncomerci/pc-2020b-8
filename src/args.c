@@ -92,7 +92,7 @@ void parse_args(const int argc, char **argv, struct socks5args *args)
     args->doh.query = "?dns=";
 
     int c;
-    int nusers = 0;
+    args->nusers = 0;
 
     while (true)
     {
@@ -130,15 +130,15 @@ void parse_args(const int argc, char **argv, struct socks5args *args)
             args->mng_port = port(optarg);
             break;
         case 'u':
-            if (nusers >= MAX_USERS)
+            if (args->nusers >= MAX_USERS)
             {
                 fprintf(stderr, "maximun number of command line users reached: %d.\n", MAX_USERS);
                 exit(1);
             }
             else
             {
-                user(optarg, args->users + nusers);
-                nusers++;
+                user(optarg, args->users + args->nusers);
+                args->nusers++;
             }
             break;
         case 'v':

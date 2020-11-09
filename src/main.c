@@ -23,10 +23,11 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-// #include "../includes/socks5.h"
+
 #include "../includes/selector.h"
 #include "../includes/socks5nio.h"
 #include "../includes/args.h"
+#include "../includes/main.h"
 static bool done = false;
 
 static void
@@ -36,18 +37,31 @@ sigterm_handler(const int signal)
     done = true;
 }
 
-struct socks5args args;
+struct socks5args* args = NULL;
+struct write *write_data = NULL;
 
+struct socks5args* get_args_data(){
+    return args;
+}
+struct write* get_write_data(){
+    return write_data;
+}
 int main(const int argc, char **argv)
 {
-    // args = (struct socks5args *) malloc(sizeof(*args));
-
-    parse_args(argc, argv, &args);
 
     // no tenemos nada que leer de stdin
     close(0);
 
     const char *err_msg = NULL;
+
+    args = (struct socks5args *) malloc(sizeof(*args));
+    if(args == NULL){
+        err_msg = "unable allocate args struct";
+        goto finally;
+    }
+
+    parse_args(argc, argv, args);
+
     selector_status ss = SELECTOR_SUCCESS;
     fd_selector selector = NULL;
 
@@ -63,7 +77,7 @@ int main(const int argc, char **argv)
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(args.socks_port);
+    addr.sin_port = htons(args->socks_port);
 
     const int server4_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (server4_fd < 0)
@@ -72,7 +86,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stdout, "Listening on ipv4 TCP port %d\n", args.socks_port);
+    fprintf(stdout, "Listening on ipv4 TCP port %d\n", args->socks_port);
 
     // man 7 ip. no importa reportar nada si falla.
     setsockopt(server4_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
@@ -106,7 +120,7 @@ int main(const int argc, char **argv)
     memset(&addr6, 0, sizeof(addr6));
     addr6.sin6_family = AF_INET6;
     addr6.sin6_addr = in6addr_any;
-    addr6.sin6_port = htons(args.socks_port);
+    addr6.sin6_port = htons(args->socks_port);
     
     const int server6_fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
     if (server6_fd < 0)
@@ -115,7 +129,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stdout, "Listening on ipv6 TCP port %d\n", args.socks_port);
+    fprintf(stdout, "Listening on ipv6 TCP port %d\n", args->socks_port);
     // fprintf(stdout, "Listening on ipv6 fd %d\n", server6_fd);
 
     if (setsockopt(server6_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0 ) {
@@ -188,20 +202,31 @@ int main(const int argc, char **argv)
         err_msg = "registering ipv6 fd";
         goto finally;
     }
-    // const struct fd_handler stdout_handler = {
-    //     .handle_read = socksv5_passive_accept,
-    //     .handle_write = NULL,
-    //     .handle_close = NULL, // nada que liberar
-    // };
 
-    // ss = selector_register(selector, 1, &socksv5, OP_READ, NULL);
+    const struct fd_handler stdout_handler = {
+        .handle_read = NULL,
+        .handle_write = write_handler, // escribe en stdout los bytes que entran en el buffer
+        .handle_close = NULL, // nada que liberar
+    };
+    // struct write** aux = get_write();
+    // struct write* write = *aux;
+    write_data = malloc(sizeof(*write_data));
 
-    // if (ss != SELECTOR_SUCCESS)
-    // {
-    //     err_msg = "registering write fd";
-    //     goto finally;
-    // }
-    // //register selector for non blockng stdout
+    if(write_data == NULL){
+        err_msg = "Unable to allocate write struct";
+        goto finally;
+    }
+    write_data->selector = selector;
+    buffer_init(&write_data->wb, N(write_data->raw_buff), write_data->raw_buff);
+
+    ss = selector_register(selector, 1, &stdout_handler, OP_NOOP, write_data);
+
+    if (ss != SELECTOR_SUCCESS)
+    {
+        err_msg = "registering write fd";
+        goto finally;
+    }
+    //register selector for non blockng stdout
 
     for (; !done;)
     {
@@ -234,6 +259,16 @@ finally:
         perror(err_msg);
         ret = 1;
     }
+    // free write struct
+    if(write_data != NULL){
+        free(write_data);
+    }
+    
+    // free args struct
+    if(args != NULL){
+        free(args);
+    }
+
     if (selector != NULL)
     {
         selector_destroy(selector);
@@ -241,7 +276,7 @@ finally:
     selector_close();
 
     socksv5_pool_destroy();
-
+    
     if (server4_fd >= 0)
     {
         close(server4_fd);

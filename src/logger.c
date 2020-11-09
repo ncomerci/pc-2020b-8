@@ -1,5 +1,6 @@
 #include "../includes/logger.h"
 #include <string.h>
+#include "../includes/main.h"
 // struct logger {
 //     size_t historical_conections;   // una por usuario
 //     size_t concurrent_conections;   // una por usuario
@@ -11,8 +12,6 @@ static void date_to_string(char * date){
     time_t timer = time(NULL);
     struct tm * tm = gmtime(&timer);
     strftime(date,DATE_SIZE,"%Y-%m-%dT%TZ",tm);
-    // fprintf(stdout,"[%s]\n",date);
-    // return date;
 }
 
 
@@ -67,15 +66,25 @@ static void print_log(struct log_info *socks_info, char type) {
     ip_to_string(socks_info->client_addr, ret,length);
     char * dest_ip = dest_addr_to_string(socks_info);
     char *print = NULL;
-
+    size_t count;
+    struct write* write_data = get_write_data();
+    uint8_t * ptr = buffer_write_ptr(&write_data->wb,&count);
+    int n;
     if(type == 'A') {
         print = "[%s]\t%s\tA\t%s\t%u\t%s\t%u\tstatus=%d\n";
-        fprintf(stdout, print, date, user_to_string(socks_info), ret, ntohs(addr_port(socks_info->client_addr)), dest_ip, ntohs(socks_info->dest_port),socks_info->status);
+        // fprintf(stdout, print, date, user_to_string(socks_info), ret, ntohs(addr_port(socks_info->client_addr)), dest_ip, ntohs(socks_info->dest_port),socks_info->status);
+        n = sprintf((char*)ptr,print, date, user_to_string(socks_info), ret, ntohs(addr_port(socks_info->client_addr)), dest_ip, ntohs(socks_info->dest_port),socks_info->status);
     }
     else if(type == 'P') {
         print = "[%s]\t%s\tP\t%s\t%s\t%u\t%s\t%s\n";
-        fprintf(stdout, print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
+        // printf("%s\n",print);
+        // fprintf(stdout, print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
+        n = sprintf((char*)ptr,print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
     }
+    if (n > 0){
+        buffer_write_adv(&write_data->wb,n);
+    }
+    selector_set_interest(write_data->selector,1, OP_WRITE);
     free(dest_ip);
 }
 

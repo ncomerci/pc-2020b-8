@@ -30,6 +30,7 @@ struct auth_st{
     auth_parser parser;
     struct usr usr;
     struct pass pass;
+    uint8_t status;
 };
 
 struct request_st
@@ -126,6 +127,8 @@ struct socks5
     /** siguiente en el pool **/
     struct socks5 *next;
 };
+
+
 
 /*
 Pool de 'struct socks5', para ser reusados.
@@ -255,6 +258,25 @@ static struct socks5 *socks5_new(int client_fd)
     http_sniff_init(&ret->http_sf);
     
     return ret;
+}
+
+void write_handler(struct selector_key * key){
+    struct write *w = (struct write *)key->data;
+    
+    size_t size;
+    buffer *b = &w->wb;
+    uint8_t *ptr = buffer_read_ptr(b, &size);
+    // n = send(key->fd,)
+    ssize_t n = write(1, ptr,size);
+    if(n > 0){
+        if(n < size){
+            buffer_read_adv(b,n);
+        }
+        else{
+            buffer_read_adv(b,size);
+            selector_set_interest_key(key, OP_NOOP);
+        }
+    }
 }
 
 /** handler del socket pasivo que atiende conexiones socks5 **/
@@ -444,12 +466,23 @@ static void auth_init(const unsigned state, struct selector_key *key)
     auth_parser_init(&d->parser);
 }
 
-static unsigned auth_process(const struct auth_st *d){
+static uint8_t check_credentials(const struct auth_st *d){
+    struct socks5args * args = get_args_data();
+    for(int i = 0; i < args->nusers; i++){
+        if((strcmp(args->users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(args->users[i].pass,(char*)d->parser.pass.passwd) == 0)){
+            return AUTH_SUCCESS;
+        }
+    }
+    return AUTH_FAIL;
+}
+
+static unsigned auth_process(struct auth_st *d){
     unsigned ret = AUTH_WRITE;
-    //TODO: not hardcode status, maybe check against existing usr/pass
-    if(auth_marshal(d->wb,0x00) == -1){
+    uint8_t status = check_credentials(d);
+    if(auth_marshal(d->wb,status) == -1){
         ret = ERROR;
     }
+    d->status = status;
     return ret;
 }
 static unsigned auth_read(struct selector_key *key){
@@ -494,7 +527,10 @@ static unsigned auth_write(struct selector_key *key){
     buffer *buff = d->wb;
     ptr = buffer_read_ptr(buff,&count);
     n = send(key->fd,ptr,count,0);
-    if (n > 0){
+    if(d->status != AUTH_SUCCESS){
+        ret = ERROR;
+    }
+    else if (n > 0){
         buffer_read_adv(buff,n);
         if(!buffer_can_read(buff)){
             if(selector_set_interest_key(key,OP_READ) == SELECTOR_SUCCESS){
