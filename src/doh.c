@@ -263,7 +263,7 @@ char *b64_encode(const char *in, size_t len){
 
 
 /* Función para calcular el QNAME del fqdn */
-static char * getQNAME (char *fqdn){
+char * getQNAME (char *fqdn){
     int cant = strlen(fqdn);
     size_t new_fqdn_size = cant + 2;
     char * new_fqdn = malloc(new_fqdn_size * sizeof(char));

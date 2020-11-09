@@ -44,6 +44,8 @@ size_t b64_encoded_size(size_t inlen);
 
 char *b64_encode(const char *in, size_t len);
 
+char * getQNAME (char *fqdn)
+
 char *dns_query_generator (char *fqdn, int type);
 
 /*--------------------------------- QUERY DNS OVER HTTP ----------------------------------------------*/

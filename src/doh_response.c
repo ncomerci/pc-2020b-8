@@ -57,6 +57,7 @@ void doh_http_parser_init(struct http_parser *p, int length)
     
     p->contentType = 0;
     p->contentLength = 0;
+    p->contentLengthAux = 0;
     p->status = 0;
 
     p->request_dns_length = length;
@@ -296,6 +297,12 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                 return p->state;
             }
 
+            /*
+            if(p->contentLengthAux++ > p->contentLength){
+                p->state = doh_error_body_lenght;
+                return p->state;
+            }*/
+
             break;
 
             // Me guardo en número de respuestas que me devuelve el servidor
@@ -317,6 +324,11 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                 p->state = doh_error_request_lenght;
                 return p->state;
             }
+              /*
+            if(p->contentLengthAux++ > p->contentLength){
+                p->state = doh_error_body_lenght;
+                return p->state;
+            }*/
             break;
 
             // Termino de leer el header y leo toda la query dns que mande anteriormente
@@ -325,6 +337,11 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                 p->read = 0;
                 p->state = doh_dns_answer_atts;
             }
+              /*
+            if(p->contentLengthAux++ > p->contentLength){
+                p->state = doh_error_body_lenght;
+                return p->state;
+            }*/
             break;
 
         case doh_dns_answer_atts:
@@ -333,7 +350,11 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                 p->read = 0;
                 p->state = doh_dns_answer_rdlength;
             }
-
+              /*
+            if(p->contentLengthAux++ > p->contentLength){
+                p->state = doh_error_body_lenght;
+                return p->state;
+            }*/
             break;
 
         case doh_dns_answer_rdlength:
@@ -354,6 +375,11 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                 p->read = 0;
 
             }
+              /*
+            if(p->contentLengthAux++ > p->contentLength){
+                p->state = doh_error_body_lenght;
+                return p->state;
+            }*/
             break;
 
         case doh_dns_answer_rdata:
@@ -380,6 +406,11 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                     p->state = doh_dns_answer_atts;
                 }
             }
+              /*
+            if(p->contentLengthAux++ > p->contentLength){
+                p->state = doh_error_body_lenght;
+                return p->state;
+            }*/
             break;
         }
         return p->state;
@@ -417,7 +448,7 @@ bool doh_is_done(const enum doh_state state, bool *error) {
     bool ret = false;
     if (state == doh_error_version || state == doh_error_status || state == doh_error_header ||
         state == doh_error_content_type_message || state == doh_error_content_lenght ||
-        state == doh_error_request_lenght || state == doh_error ) {
+        state == doh_error_request_lenght || state == doh_error_body_lenght || state == doh_error ) {
         if (error != 0)
         {
             *error = true;
