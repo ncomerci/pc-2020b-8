@@ -1125,12 +1125,12 @@ static unsigned copy_r(struct selector_key *key)
     }
     else
     {
-        if(is_origin(key)){
-            pop3sniff(key,ptr,n);
-        }
+        // if(is_origin(key) && get_args_data()->disectors_enabled){
+        //     pop3sniff(key,ptr,n);
+        // }
         buffer_write_adv(b, n);
         
-        if(key->fd == ATTACHMENT(key)->client_fd) {
+        if(key->fd == ATTACHMENT(key)->client_fd && get_args_data()->disectors_enabled) {
             http_sniff_stm(&ATTACHMENT(key)->socks_info, &ATTACHMENT(key)->http_sf, ptr, n);
         }
     }
@@ -1169,7 +1169,7 @@ static unsigned copy_w(struct selector_key *key)
     }
     else
     {
-        if(is_origin(key)){
+        if(is_origin(key) && get_args_data()->disectors_enabled){
             pop3sniff(key,ptr,n);
         }
         buffer_read_adv(b, n);
