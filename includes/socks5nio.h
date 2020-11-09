@@ -1,6 +1,5 @@
 #ifndef SOCKS5NIO_H
 #define SOCKS5NIO_H
-#define MAX_BUFF_SIZE 2048
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +20,7 @@
 #include "auth.h"
 #include "logger.h"
 #include "httpsniff.h"
+#include "doh.h"
 
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 #define ATTACHMENT(key) ( (struct socks5 *)(key)->data)

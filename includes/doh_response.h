@@ -67,14 +67,14 @@ enum doh_state
 
 
 
-typedef struct http_parser{
+typedef struct doh_data{
     enum doh_state state;
 
     int status; //200 caso de éxito, otro caso error
     uint16_t  contentLength; //tamaño del body -> tamaño de la respuesta DNS
     int contentType;
     int anscount_aux;
-    struct dns_parser * answers;
+    struct dns_answers * answers;
     int request_dns_length;
     int aux_request_dns_length;
 
@@ -82,7 +82,7 @@ typedef struct http_parser{
     uint16_t answerscounter;
     uint16_t remaining;
     uint8_t read;
-}http_parser;
+}doh_data;
 
 
 /*
@@ -98,7 +98,7 @@ Each resource record has the following format:
 
 
 
-struct dns_parser{
+struct dns_answers{
     uint16_t rdlength;
     uint8_t * rdata;
 };

@@ -189,7 +189,7 @@ static const struct state_definition client_statbl[] = {
     },
     {
         .state = REQUEST_RESOLV,
-        .on_block_ready = request_resolv_done,
+        .on_write_ready = request_resolv_done,
     },
     {
         .state = REQUEST_CONNECTING,
@@ -603,8 +603,6 @@ static unsigned request_write(struct selector_key *key)
 
 static unsigned request_connect(struct selector_key *key, struct request_st *d);
 
-static void *request_resolv_blocking(void *data);
-
 /*
 Procesa el mensaje de tipo 'request'.
 Únicamente soportamos el comando cmd_connect.
@@ -658,6 +656,21 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
         }
         case domainname_type:
         {
+            if(-1 != create_doh_request(key->s, d->request.dest_addr.fqdn, ATTACHMENT(key)->origin_resolution, *d->client_fd))
+            {
+                ret = REQUEST_RESOLV;
+                selector_set_interest_key(key, OP_NOOP);
+                memcpy(ATTACHMENT(key)->socks_info.dest_addr.fqdn,d->request.dest_addr.fqdn,sizeof(d->request.dest_addr.fqdn));
+                ATTACHMENT(key)->socks_info.dest_port = d->request.dest_port;
+            }
+            else {
+                ret = REQUEST_WRITE;
+                d->status = status_general_socks_server_failure;
+                selector_set_interest_key(key, OP_WRITE);
+                ATTACHMENT(key)->socks_info.status = d->status;
+            }
+
+            /*
             struct selector_key *k = (struct selector_key *)malloc(sizeof(*key));
             if (k == NULL)
             {
@@ -670,6 +683,8 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
             {
                 // TODO: change when migration to DoH
                 memcpy(k, key, sizeof(*k));
+                crear fd que hace la consulta && set_interest(OP_READ)
+                
                 if (pthread_create(&tid, 0, request_resolv_blocking, k) == -1)
                 {
                     ret = REQUEST_WRITE;
@@ -685,6 +700,7 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
                     ATTACHMENT(key)->socks_info.dest_port = d->request.dest_port;
                 }
             }
+            */
             break;
         }
         default:
@@ -714,34 +730,34 @@ Realiza la resolución de DNS bloqueante.
 Una vez resuelto notifica al selector para que el evento esté disponible en la próxima iteración
 */
 //TODO: cambiar para cuando usemos DoH
-static void *request_resolv_blocking(void *data)
-{
-    struct selector_key *key = (struct selector_key *)data;
-    struct socks5 *s = ATTACHMENT(key);
+// static void *request_resolv_blocking(void *data)
+// {
+//     struct selector_key *key = (struct selector_key *)data;
+//     struct socks5 *s = ATTACHMENT(key);
 
-    pthread_detach(pthread_self());
-    s->origin_resolution = 0;
-    struct addrinfo hints = {
-        .ai_family = AF_UNSPEC,     // Allow IPv4 or IPv6
-        .ai_socktype = SOCK_STREAM, // Datagram socket
-        .ai_flags = AI_PASSIVE,     // For wildcard IP address
-        .ai_protocol = 0,           // Any protocol
-        .ai_canonname = NULL,
-        .ai_addr = NULL,
-        .ai_next = NULL,
-    };
+//     pthread_detach(pthread_self());
+//     s->origin_resolution = 0;
+//     struct addrinfo hints = {
+//         .ai_family = AF_UNSPEC,     // Allow IPv4 or IPv6
+//         .ai_socktype = SOCK_STREAM, // Datagram socket
+//         .ai_flags = AI_PASSIVE,     // For wildcard IP address
+//         .ai_protocol = 0,           // Any protocol
+//         .ai_canonname = NULL,
+//         .ai_addr = NULL,
+//         .ai_next = NULL,
+//     };
 
-    char buff[7];
-    snprintf(buff, sizeof(buff), "%d", ntohs(s->client.request.request.dest_port));
+//     char buff[7];
+//     snprintf(buff, sizeof(buff), "%d", ntohs(s->client.request.request.dest_port));
 
-    getaddrinfo(s->client.request.request.dest_addr.fqdn, buff, &hints, &s->origin_resolution);
+//     getaddrinfo(s->client.request.request.dest_addr.fqdn, buff, &hints, &s->origin_resolution);
 
-    selector_notify_block(key->s, key->fd);
+//     selector_notify_block(key->s, key->fd);
 
-    free(data);
+//     free(data);
 
-    return 0;
-}
+//     return 0;
+// }
 
 // procesa el resultado de la resolución de nombres
 static unsigned request_resolv_done(struct selector_key *key)
@@ -752,6 +768,13 @@ static unsigned request_resolv_done(struct selector_key *key)
     if (s->origin_resolution == 0)
     {
         d->status = status_general_socks_server_failure;
+        if (-1 != request_marshal(s->client.request.wb, d->status, d->request.dest_addr_type, d->request.dest_addr, d->request.dest_port))
+        {  
+            return REQUEST_WRITE;
+        }
+        else {
+            abort();
+        }
     }
     else
     {
@@ -1003,18 +1026,22 @@ static fd_interest copy_compute_interests(fd_selector s, struct copy *d)
 {
     fd_interest ret = OP_NOOP;
 
-    if (((d->duplex & OP_READ) && buffer_can_write(d->rb)) )
+    if(*d->fd != -1) 
     {
-        ret |= OP_READ;
+        if (((d->duplex & OP_READ) && buffer_can_write(d->rb)) )
+        {
+            ret |= OP_READ;
+        }
+        if ((d->duplex & OP_WRITE) && buffer_can_read(d->wb) )
+        {
+            ret |= OP_WRITE;
+        }
+        if (SELECTOR_SUCCESS != selector_set_interest(s, *d->fd, ret))
+        {
+            abort();
+        }
     }
-    if ((d->duplex & OP_WRITE) && buffer_can_read(d->wb) )
-    {
-        ret |= OP_WRITE;
-    }
-    if (SELECTOR_SUCCESS != selector_set_interest(s, *d->fd, ret))
-    {
-        abort();
-    }
+
     return ret;
 }
 

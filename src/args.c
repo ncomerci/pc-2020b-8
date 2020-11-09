@@ -88,7 +88,7 @@ void parse_args(const int argc, char **argv, struct socks5args *args)
     args->doh.host = "localhost";
     args->doh.ip = "127.0.0.1";
     args->doh.port = 8053;
-    args->doh.path = "/getnsrecord";
+    args->doh.path = "/dns-query"; //TODO: cambiar a getnsrecord antes de entregar
     args->doh.query = "?dns=";
 
     int c;
