@@ -157,7 +157,7 @@ static void shift_users(){
 }
 
 // TODO: FINISH
-static void delete_user(i){
+static void delete_user(int i){
     shift_users();
 }
 
