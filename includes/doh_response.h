@@ -62,6 +62,7 @@ enum doh_state
 
     // errores para el doh body
     doh_error_request_lenght,
+    doh_error_body_lenght,
     doh_error,
 };
 
