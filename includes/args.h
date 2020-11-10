@@ -1,6 +1,11 @@
 #ifndef ARGS_H_kFlmYm1tW9p5npzDr2opQJ9jM8
 #define ARGS_H_kFlmYm1tW9p5npzDr2opQJ9jM8
-
+#include <stdio.h>  /* for printf */
+#include <stdlib.h> /* for exit */
+#include <limits.h> /* LONG_MIN et al */
+#include <string.h> /* memset */
+#include <errno.h>
+#include <getopt.h>
 #include <stdbool.h>
 
 #define MAX_USERS 10
@@ -49,6 +54,7 @@ void free_args();
 
 // struct socks5args* get_args();
 
+// getters and setters for args struct
 char * get_args_socks_addr();
 
 unsigned short get_args_socks_port();

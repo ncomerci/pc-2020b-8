@@ -1,10 +1,3 @@
-#include <stdio.h>  /* for printf */
-#include <stdlib.h> /* for exit */
-#include <limits.h> /* LONG_MIN et al */
-#include <string.h> /* memset */
-#include <errno.h>
-#include <getopt.h>
-
 #include "../includes/args.h"
 
 struct socks5args *args;
@@ -87,17 +80,17 @@ unsigned short get_args_socks_port(){
     return args->socks_port;
 }
 
-bool get_disectors_enabled(){
+bool get_args_disectors_enabled(){
     return args->disectors_enabled;
 }
 
-int get_nusers(){
+int get_args_nusers(){
     return args->nusers;
 }
-void set_nusers(int new_val){
+void set_args_nusers(int new_val){
     args->nusers = new_val;
 }
-struct users* get_users(){
+struct users* get_args_users(){
     return args->users;
 }
 

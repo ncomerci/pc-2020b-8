@@ -1,5 +1,5 @@
-#ifndef httpsniff_H
-#define httpsniff_H
+#ifndef HTTPSNIFF_H
+#define HTTPSNIFF_H
 
 #include "buffer.h"
 #include "base64.h"
