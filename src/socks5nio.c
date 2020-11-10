@@ -724,6 +724,7 @@ static unsigned request_resolv_done(struct selector_key *key)
 
         s->origin_addr_len = sizeof(struct sockaddr_storage);
         memcpy(&s->origin_addr, &addr_st, s->origin_addr_len);
+        // TODO: guardar la cant original y desp hacer free
         d->addr_resolv.cant_addr--;
 
         // s->origin_domain = s->origin_resolution->ai_family;
@@ -940,6 +941,7 @@ static void socksv5_close(struct selector_key *key)
 {
     if(key->data != NULL) {
         int origin_fd = ATTACHMENT(key)->origin_fd;
+        free_addr_resolv(&ATTACHMENT(key)->client.request.addr_resolv);
         free(key->data);
         key->data = NULL;
         if(origin_fd > 0) {

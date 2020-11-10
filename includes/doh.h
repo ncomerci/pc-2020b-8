@@ -20,8 +20,8 @@
 #define DOH_ATTACH(key) ( (struct DoH *)(key)->data)
 
 struct addr_resolv {
-    struct sockaddr_storage *origin_addr_res;
-    size_t cant_addr;
+    struct sockaddr_storage *origin_addr_res; //direcciones resueltas
+    size_t cant_addr;                         //cantidad de direcciones resueltas
 };
 
 struct DoH {
@@ -52,13 +52,15 @@ typedef enum ip_type {
     IPv4 = 0, IPv6,
 }ip_type;
 
-int create_doh_request(fd_selector s, char *fqdn, int client_fd, struct addr_resolv * ar);
+int create_doh_request(fd_selector s, char *fqdn, int client_fd, struct addr_resolv *ar);
 
 size_t b64_encoded_size(size_t inlen);
 
 char *b64_encode(const char *in, size_t len);
 
 char *dns_query_generator(char *fqdn, ip_type type, size_t *req_length);
+
+void free_addr_resolv(struct addr_resolv *addr_r);
 
 /*--------------------------------- QUERY DNS OVER HTTP ----------------------------------------------*/
 

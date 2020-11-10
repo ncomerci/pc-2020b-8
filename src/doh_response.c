@@ -53,7 +53,6 @@ void doh_http_parser_init(struct doh_response *p, size_t length)
 {
     memset(p, 0, sizeof(doh_response));
     p->state = doh_version;
-    p->answers = (struct dns_parser *) calloc(1, sizeof(struct dns_parser));
 
     p->request_dns_length = length;
 }
@@ -170,7 +169,6 @@ enum doh_state doh_http_parser_feed(doh_response *p, uint8_t b)
                 if(b >= '0' && b <= '9') {
                     p->contentLength = (p->contentLength * 10) + b - '0' ;
                 } else if(b == '\r'){
-                    printf("Content lenght = %d\n",p->contentLength);
                     p->headercounter++;
                     p->read = 1;
                     p->state = doh_header;
@@ -265,7 +263,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
         // Leo el header hasta el campo que me dice cuantas respuestas tengo
         case doh_dns_request_start:
 
-            //printf("header-start\n");
             if(p->read < DNS_HEADER_START){
                 p->read ++;
             }
@@ -290,7 +287,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
             // Me guardo en número de respuestas que me devuelve el servidor
         case doh_dns_ancount:
 
-            //printf("answer-counter\n");
             if(p->read < DNS_ANCOUNT){
 
                 p->answerscounter = p->answerscounter * 10 + b;
@@ -300,7 +296,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
                 p->state = doh_dns_request_end;
                 p->read = 0;
                 p->answers = calloc(p->answerscounter, sizeof(*p->answers));
-                printf("Cantidad de respuestas: %d\n",p->answerscounter);
             }
             if(p->aux_request_dns_length++ >= p->request_dns_length){
                 p->state = doh_error_request_lenght;
@@ -345,7 +340,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
                 p->read++;
             }
             if(p->read == RDLENGTH){
-                printf("RDLENGTH valor: %d\n", (p->answers + p->anscount_aux)->rdlength);
                 remaining_set(p, (p->answers + p->anscount_aux)->rdlength);
                 ((p->answers + p->anscount_aux)->rdata) = (uint8_t *)calloc(((p->answers + p->anscount_aux)->rdlength), sizeof(uint8_t));
                 if((p->answers + p->anscount_aux)->rdata == NULL)
@@ -370,16 +364,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
 
             if (remaining_is_done(p))
             {
-                /* Usado para testear que se este guardando bien los valores en p->answers
-                for(int i = 0; i < (p->answers + p->anscount_aux)->rdlength; i++){
-                    if(i == 0){
-                        printf("%d",(p->answers + p->anscount_aux)->rdata[i]);
-                    } else {
-                        printf(".%d",(p->answers + p->anscount_aux)->rdata[i]);
-                    }
-                }
-                printf("\n"); */
-
                 if(p->anscount_aux + 1 >= p->answerscounter){
                     p->state = doh_response_done;
                 } else{
@@ -388,11 +372,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
                     p->state = doh_dns_answer_atts;
                 }
             }
-              /*
-            if(p->contentLengthAux++ > p->contentLength){
-                p->state = doh_error_body_lenght;
-                return p->state;
-            }*/
             break;
         default:
             abort();
@@ -446,23 +425,3 @@ bool doh_is_done(const enum doh_state state, bool *error) {
     }
     return ret;
 }
-
-
-/* Utilizado para testear que la respuesta doh se esta parseando bien 
-int main(){
-
-    struct doh_response *p = malloc(sizeof(struct http_parser));
-    doh_http_parser_init(p,33);
-    int j;
-    for(int i = 0; ;){
-        uint8_t c = doh_response_complete[i];
-        p->state = doh_http_parser_feed(p, c);
-        if(p->state == doh_body){
-            for(int k = i + j; j < p->contentLength;j++){
-            uint8_t c = dns_response_answers[k];
-            p->state =  doh_dns_parser_feed(p, c);
-            }
-        } 
-    }
-
-} */

@@ -25,6 +25,7 @@ static void doh_done(struct selector_key *key);
 static void doh_write(struct selector_key *key);
 static void doh_read(struct selector_key *key);
 static void save_results(struct doh_response *dr, struct addr_resolv *addr_r, bool *error);
+static void free_doh_response(struct doh_response *dr);
 
 const struct fd_handler doh_handler = {
     .handle_read = doh_read,
@@ -56,7 +57,6 @@ static void doh_done(struct selector_key *key) {
     {
         abort();
     }
-    // TODO: funcion que libera answers
     close(fd);
 
 }
@@ -140,12 +140,13 @@ static void doh_read(struct selector_key *key) {
         goto fail;
     }
 
+    free_doh_response(&dr);
     return;
 
 fail:
 
     selector_set_interest(key->s, doh->client_fd, OP_WRITE);
-    // TODO: free de rdatas y answers
+    free_doh_response(&dr);
     doh_done(key);
 }
 
@@ -175,7 +176,19 @@ static void save_results(struct doh_response *dr, struct addr_resolv *addr_r, bo
             memcpy(addr.sin6_addr.__in6_u.__u6_addr8, answers[i].rdata, IPV6_LEN);
             memcpy(&addr_r->origin_addr_res[i], (struct sockaddr_storage *)&addr, sizeof(addr));
         }
+        else{
+            *error = true;
+            return;
+        }
     }
+}
+
+static void free_doh_response(struct doh_response *dr) {
+
+    for(size_t i = 0 ; i < dr->answerscounter ; i++) {
+        free(dr->answers[i].rdata);
+    }
+    free(dr->answers);
 }
 
 
@@ -244,6 +257,10 @@ int create_doh_request(fd_selector s, char *fqdn, int client_fd, struct addr_res
 fail:
     free(doh);
     return -1;
+}
+
+void free_addr_resolv(struct addr_resolv *addr_r) {
+    free(addr_r->origin_addr_res);
 }
 
 /*
@@ -366,7 +383,6 @@ char * getQNAME (char *fqdn){
     new_fqdn[pos] = i - pos;
     new_fqdn[i+1] = 0x00;
     new_fqdn[new_fqdn_size] = 0x00;
-//printf("%s\n", new_fqdn);
     return new_fqdn;
 }
 
@@ -380,9 +396,7 @@ char * dns_query_generator(char *fqdn, ip_type type, size_t *req_length){
     uint8_t *dns_query = malloc(*req_length * sizeof(uint8_t) + 1);
 
 
-//printf("%s\n", query_dns_header);
     memcpy(dns_query, query_dns_header,DNS_QUERY_HEADER);
-// printf("%s\n", dns_query);
     memcpy(dns_query + DNS_QUERY_HEADER, dns_query_name, dns_query_name_len);
     int i = DNS_QUERY_HEADER + dns_query_name_len;
     dns_query[i++] = 0x00;
@@ -461,10 +475,6 @@ uint8_t * http_query_generator(struct DoH *doh, ip_type type){
     strcat((char *)http_query, doh_host_name);
     strcat((char *)http_query, doh->host);
     strcat((char *)http_query, doh_accept_header);
-
-    /* Usado para testear que todo se este mandando correctamente
-    printf("QUERY que se manda por HTTP\n");
-    printf("%s\n", http_query ); */
 
     free(dns_query_encoded);
     return http_query;
