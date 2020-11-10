@@ -233,13 +233,6 @@ int create_doh_request(fd_selector s, char *fqdn, int client_fd, struct addr_res
         {
             // hay que esperar a la conexión
 
-            // // dejamos de pollear el socket del cliente
-            // selector_status st = selector_set_interest_key(key, OP_NOOP);
-            // if (st != SELECTOR_SUCCESS)
-            // {
-            //     goto fail;
-            // }
-
             // esperamos la conexión en el nuevo socket
             selector_status st = selector_register(s, fd, &doh_handler, OP_WRITE, doh);
             if (st != SELECTOR_SUCCESS)
@@ -289,10 +282,6 @@ a four bit field that specifies kind of query in this message.
 
 
 
-
-
-
-
 Question section format
 - QNAME -->  www.mydomain.com = 3www8mydomain3com0
 represented as a sequence of labels, where each label consists of a length octet followed by that number of octets.
@@ -304,64 +293,6 @@ a two octet code which specifies the type of the query.
 a two octet code that specifies the class of the query.
 
 */
-
-//ENCODER BASE64 URL
-
-// char *b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
-// size_t b64_encoded_size(size_t inlen){
-//     size_t ret;
-
-//     ret = inlen;
-//     if (inlen % 3 != 0)
-//         ret += 3 - (inlen % 3);
-//     ret /= 3;
-//     ret *= 4;
-
-//     return ret;
-// }
-
-// char *b64_encode(const char *in, size_t len){
-
-//     char   *out;
-//     size_t  elen;
-//     size_t  i;
-//     size_t  j;
-//     size_t  v;
-
-//     if (in == NULL || len == 0)
-//         return NULL;
-
-//     elen = b64_encoded_size(len);
-//     out  = malloc(elen+1);
-//     out[elen] = '\0';
-
-//     for (i=0, j=0; i<len; i+=3, j+=4) {
-//         v = in[i];
-//         v = i+1 < len ? v << 8 | in[i+1] : v << 8;
-//         v = i+2 < len ? v << 8 | in[i+2] : v << 8;
-
-//         out[j]   = b64chars[(v >> 18) & 0x3F];
-//         out[j+1] = b64chars[(v >> 12) & 0x3F];
-
-//         if (i+1 < len) {
-//             out[j+2] = b64chars[(v >> 6) & 0x3F];
-//         } else {
-//             out[j+2] = '=';
-//         }
-//         if (i+2 < len) {
-//             out[j+3] = b64chars[v & 0x3F];
-//         } else {
-//             out[j+3] = '=';
-//         }
-//     }
-
-//     return out;
-// }
-
-
-
-
 
 /* Función para calcular el QNAME del fqdn */
 char * getQNAME (char *fqdn){
@@ -497,14 +428,3 @@ int doh_request_marshal(struct DoH *doh, ip_type type) {
 
     return doh_request_length;
 }
-
-
-
-/* Usado para testear que este imprimiendo bien 
-
-int main(){
-    uint8_t prueba[] = "www.itba.edu.ar";
-    uint8_t * query = http_query_generator (prueba,0);
-} */
-
-                
