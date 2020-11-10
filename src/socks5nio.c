@@ -41,6 +41,9 @@ struct request_st
     /** resumen de la respuesta a enviar **/
     enum socks_reply_status status;
 
+    /** resoluciónes de la dirección del origin server **/
+    struct addr_resolv addr_resolv;
+
     /** a donde nos tenemos que conectar **/
     struct sockaddr_storage *origin_addr;
     socklen_t *origin_addr_len;
@@ -79,11 +82,11 @@ struct socks5
     socklen_t client_addr_len;
     int client_fd;
 
-    /** resolucion de la direccion del origin server **/
-    struct addrinfo *origin_resolution;
+    // /** resolucion de la direccion del origin server **/
+    // struct addrinfo *origin_resolution;
 
-    /** intento actual de la direccion del origin server **/
-    struct addrinfo *origin_resolution_current;
+    // /** intento actual de la direccion del origin server **/
+    // struct addrinfo *origin_resolution_current;
 
     /** informacion del origin server **/
     struct sockaddr_storage origin_addr;
@@ -138,7 +141,6 @@ static struct socks5 *pool = 0;
 static const struct state_definition *socks_describe_status(void);
 static void socksv5_write(struct selector_key *key);
 static void socksv5_read(struct selector_key *key);
-static void socksv5_block(struct selector_key *key);
 static void socksv5_close(struct selector_key *key);
 static unsigned copy_r(struct selector_key *key);
 static unsigned copy_w(struct selector_key *key);
@@ -216,7 +218,6 @@ static const struct state_definition client_statbl[] = {
 const struct fd_handler socks5_handler = {
     .handle_read = socksv5_read,
     .handle_write = socksv5_write,
-    .handle_block = socksv5_block,
     .handle_close = socksv5_close,
 };
 
@@ -608,14 +609,10 @@ Procesa el mensaje de tipo 'request'.
 Únicamente soportamos el comando cmd_connect.
 
 Si tenemos la dirección IP intentamos establecer la conexión.
-
-Si tenemos que resolver el nombre (operación bloqueante), disparamos
-la resolución en un thread que luego notificará al selector que ha terminado.
 */
 static unsigned request_process(struct selector_key *key, struct request_st *d)
 {
     unsigned ret;
-    pthread_t tid;
 
     switch (d->request.cmd)
     {
@@ -656,7 +653,7 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
         }
         case domainname_type:
         {
-            if(-1 != create_doh_request(key->s, d->request.dest_addr.fqdn, ATTACHMENT(key)->origin_resolution, *d->client_fd))
+            if(-1 != create_doh_request(key->s, d->request.dest_addr.fqdn, *d->client_fd, &d->addr_resolv))
             {
                 ret = REQUEST_RESOLV;
                 selector_set_interest_key(key, OP_NOOP);
@@ -670,37 +667,6 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
                 ATTACHMENT(key)->socks_info.status = d->status;
             }
 
-            /*
-            struct selector_key *k = (struct selector_key *)malloc(sizeof(*key));
-            if (k == NULL)
-            {
-                ret = REQUEST_WRITE;
-                d->status = status_general_socks_server_failure;
-                selector_set_interest_key(key, OP_WRITE);
-                ATTACHMENT(key)->socks_info.status = d->status;
-            }
-            else
-            {
-                // TODO: change when migration to DoH
-                memcpy(k, key, sizeof(*k));
-                crear fd que hace la consulta && set_interest(OP_READ)
-                
-                if (pthread_create(&tid, 0, request_resolv_blocking, k) == -1)
-                {
-                    ret = REQUEST_WRITE;
-                    d->status = status_general_socks_server_failure;
-                    selector_set_interest_key(key, OP_WRITE);
-                    ATTACHMENT(key)->socks_info.status = d->status;
-                }
-                else
-                {
-                    ret = REQUEST_RESOLV;
-                    selector_set_interest_key(key, OP_NOOP);
-                    memcpy(ATTACHMENT(key)->socks_info.dest_addr.fqdn,d->request.dest_addr.fqdn,sizeof(d->request.dest_addr.fqdn));
-                    ATTACHMENT(key)->socks_info.dest_port = d->request.dest_port;
-                }
-            }
-            */
             break;
         }
         default:
@@ -725,67 +691,58 @@ static unsigned request_process(struct selector_key *key, struct request_st *d)
     return ret;
 }
 
-/*
-Realiza la resolución de DNS bloqueante.
-Una vez resuelto notifica al selector para que el evento esté disponible en la próxima iteración
-*/
-//TODO: cambiar para cuando usemos DoH
-// static void *request_resolv_blocking(void *data)
-// {
-//     struct selector_key *key = (struct selector_key *)data;
-//     struct socks5 *s = ATTACHMENT(key);
-
-//     pthread_detach(pthread_self());
-//     s->origin_resolution = 0;
-//     struct addrinfo hints = {
-//         .ai_family = AF_UNSPEC,     // Allow IPv4 or IPv6
-//         .ai_socktype = SOCK_STREAM, // Datagram socket
-//         .ai_flags = AI_PASSIVE,     // For wildcard IP address
-//         .ai_protocol = 0,           // Any protocol
-//         .ai_canonname = NULL,
-//         .ai_addr = NULL,
-//         .ai_next = NULL,
-//     };
-
-//     char buff[7];
-//     snprintf(buff, sizeof(buff), "%d", ntohs(s->client.request.request.dest_port));
-
-//     getaddrinfo(s->client.request.request.dest_addr.fqdn, buff, &hints, &s->origin_resolution);
-
-//     selector_notify_block(key->s, key->fd);
-
-//     free(data);
-
-//     return 0;
-// }
-
 // procesa el resultado de la resolución de nombres
 static unsigned request_resolv_done(struct selector_key *key)
 {
     struct request_st *d = &ATTACHMENT(key)->client.request;
     struct socks5 *s = ATTACHMENT(key);
 
-    if (s->origin_resolution == 0)
+    if (d->addr_resolv.cant_addr == 0)
     {
-        d->status = status_general_socks_server_failure;
-        if (-1 != request_marshal(s->client.request.wb, d->status, d->request.dest_addr_type, d->request.dest_addr, d->request.dest_port))
-        {  
-            return REQUEST_WRITE;
+        if(d->status != status_ttl_expired) {
+            d->status = status_general_socks_server_failure;
         }
-        else {
-            abort();
-        }
+        goto fail;
     }
     else
     {
-        s->origin_domain = s->origin_resolution->ai_family;
-        s->origin_addr_len = s->origin_resolution->ai_addrlen;
-        memcpy(&s->origin_addr, s->origin_resolution->ai_addr, s->origin_resolution->ai_addrlen);
-        freeaddrinfo(s->origin_resolution);
-        s->origin_resolution = 0;
+        struct sockaddr_storage addr_st = d->addr_resolv.origin_addr_res[d->addr_resolv.cant_addr - 1];
+        if(addr_st.ss_family == AF_INET) {
+            struct sockaddr_in *addr = (struct sockaddr_in *)&addr_st;
+            s->origin_domain = addr->sin_family;
+            addr->sin_port = d->request.dest_port;
+        }
+        else if(addr_st.ss_family == AF_INET6) {
+            struct sockaddr_in6 *addr = (struct sockaddr_in6 *)&addr_st;
+            s->origin_domain = addr->sin6_family;
+            addr->sin6_port = d->request.dest_port;
+        }
+        else {
+            d->status = status_address_type_not_supported;
+            goto fail;
+        }
+
+        s->origin_addr_len = sizeof(struct sockaddr_storage);
+        memcpy(&s->origin_addr, &addr_st, s->origin_addr_len);
+        d->addr_resolv.cant_addr--;
+
+        // s->origin_domain = s->origin_resolution->ai_family;
+        // s->origin_addr_len = s->origin_resolution->ai_addrlen;
+        // memcpy(&s->origin_addr, s->origin_resolution->ai_addr, s->origin_resolution->ai_addrlen);
+        // freeaddrinfo(s->origin_resolution);
+        // s->origin_resolution = 0;
     }
 
     return request_connect(key, d);
+
+fail:
+    if (-1 != request_marshal(s->client.request.wb, d->status, d->request.dest_addr_type, d->request.dest_addr, d->request.dest_port))
+    {  
+        return REQUEST_WRITE;
+    }
+    else {
+        abort();
+    }
 }
 
 static void request_read_close(const unsigned state, struct selector_key *key)
@@ -903,6 +860,14 @@ static unsigned request_connecting(struct selector_key *key)
         }
         else {
             data->client.request.status = errno_to_socks(error);
+            if(data->client.request.status == status_ttl_expired) {
+
+                if(SELECTOR_SUCCESS != selector_set_interest_key(key, OP_NOOP)) {
+                    return ERROR;
+                }
+                ATTACHMENT(key)->socks_info.status = data->client.request.status;
+                return REQUEST_RESOLV;
+            }
         }
 
         if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
@@ -964,17 +929,6 @@ static void socksv5_write(struct selector_key *key)
 {
     struct state_machine *stm = &ATTACHMENT(key)->stm;
     const enum socks_v5state st = stm_handler_write(stm, key);
-
-    if (ERROR == st || DONE == st)
-    {
-        socksv5_done(key);
-    }
-}
-
-static void socksv5_block(struct selector_key *key)
-{
-    struct state_machine *stm = &ATTACHMENT(key)->stm;
-    const enum socks_v5state st = stm_handler_block(stm, key);
 
     if (ERROR == st || DONE == st)
     {

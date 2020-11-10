@@ -3,7 +3,6 @@
 
 #include <sys/time.h>
 #include <stdbool.h>
-#include <pthread.h>
 
 /**
  * selector.c - un muliplexor de entrada salida
@@ -127,7 +126,6 @@ struct selector_key {
 typedef struct fd_handler {
   void (*handle_read)      (struct selector_key *key);
   void (*handle_write)     (struct selector_key *key);
-  void (*handle_block)     (struct selector_key *key);
 
   /**
    * llamado cuando se se desregistra el fd
@@ -165,16 +163,6 @@ struct fdselector
     struct timespec master_t;
     /** tambien select() puede cambiar el valor */
     struct timespec slave_t;
-
-    // notificaciónes entre blocking jobs y el selector
-    volatile pthread_t selector_thread;
-    /** protege el acceso a resolutions jobs */
-    pthread_mutex_t resolution_mutex;
-    /**
-     * lista de trabajos blockeantes que finalizaron y que pueden ser
-     * notificados.
-     */
-    struct blocking_job *resolution_jobs;
 };
 
 /**
@@ -225,10 +213,5 @@ selector_select(fd_selector s);
  */
 int
 selector_fd_set_nio(const int fd);
-
-/** notifica que un trabajo bloqueante terminó */
-selector_status
-selector_notify_block(fd_selector s,
-                 const int   fd);
 
 #endif

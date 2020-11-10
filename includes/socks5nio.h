@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <time.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <arpa/inet.h>
 #include "hello.h"
 #include "request.h"

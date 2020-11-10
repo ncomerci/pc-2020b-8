@@ -11,6 +11,8 @@
 #define DNS_QTYPE 2
 #define DNS_QCLASS 2
 
+#define ipv4_to_long(x) ((x[3]<<24) | (x[2]<<16)| (x[1]<<8) | x[0])
+
 static char *host = "localhost\r\n";
 static char *ip = "127.0.0.1";
 static char *path = "/dns-query"; //TODO: cambiar a getnsrecord antes de entregar
@@ -21,11 +23,12 @@ static void doh_init(struct DoH *doh);
 static void doh_close(struct selector_key *key);
 static void doh_done(struct selector_key *key);
 static void doh_write(struct selector_key *key);
+static void doh_read(struct selector_key *key);
+static void save_results(struct doh_response *dr, struct addr_resolv *addr_r, bool *error);
 
 const struct fd_handler doh_handler = {
-    .handle_read = NULL,
+    .handle_read = doh_read,
     .handle_write = doh_write,
-    .handle_block = NULL,
     .handle_close = doh_close,
 };
 
@@ -53,6 +56,7 @@ static void doh_done(struct selector_key *key) {
     {
         abort();
     }
+    // TODO: funcion que libera answers
     close(fd);
 
 }
@@ -70,7 +74,7 @@ static void doh_write(struct selector_key *key) {
         }
         else {
             size_t count;
-            doh_request_marshal(doh, 0);
+            doh_request_marshal(doh, IPv4);
 
             uint8_t * ptr = buffer_read_ptr(&doh->buff, &count);
             ssize_t n = send(key->fd, ptr, count, MSG_NOSIGNAL);
@@ -81,21 +85,101 @@ static void doh_write(struct selector_key *key) {
             buffer_read_adv(&doh->buff, n);
             if (!buffer_can_read(&doh->buff)) {
                 selector_status st = selector_set_interest_key(key, OP_READ);
-                int a = st - SELECTOR_SUCCESS;
-                if (a != 0) {
+                
+                if (st != SELECTOR_SUCCESS) {
                     goto fail;
                 }
+                
             }
         }
     }
 
+    return;
+
 fail:
     selector_set_interest(key->s, doh->client_fd, OP_WRITE);
-    doh->origin_resolution = NULL;
     doh_done(key);
 }
 
-int create_doh_request(fd_selector s, char *fqdn, struct addrinfo *origin_resolution, int client_fd) {
+static void doh_read(struct selector_key *key) {
+
+    struct DoH * doh = DOH_ATTACH(key);
+
+    uint8_t *ptr;
+    size_t count;
+    ssize_t n;
+    bool error;
+    struct doh_response dr;
+
+    ptr = buffer_write_ptr(&doh->buff, &count);
+    n = recv(doh->doh_fd, ptr, count, 0);
+
+    if(n > 0) {
+        buffer_write_adv(&doh->buff, n);
+
+        enum doh_state st = doh_consume(&doh->buff, doh->req_length, &dr, &error);
+
+        if(doh_is_done(st, &error)) {
+            selector_status st = selector_set_interest(key->s, doh->client_fd, OP_WRITE);
+            if (st != SELECTOR_SUCCESS) {
+                goto fail;
+            }
+
+            save_results(&dr, doh->ar, &error);
+            if(error) {
+                goto fail;
+            }
+
+            doh_done(key);
+        }
+        else {
+            goto fail;
+        }
+    }
+    else {
+        goto fail;
+    }
+
+    return;
+
+fail:
+
+    selector_set_interest(key->s, doh->client_fd, OP_WRITE);
+    // TODO: free de rdatas y answers
+    doh_done(key);
+}
+
+static void save_results(struct doh_response *dr, struct addr_resolv *addr_r, bool *error) {
+    addr_r->cant_addr = dr->answerscounter;
+    struct dns_parser *answers = dr->answers;
+
+    addr_r->origin_addr_res = malloc(addr_r->cant_addr * sizeof(struct sockaddr_storage));
+
+    if(addr_r->origin_addr_res == NULL) {
+        *error = true;
+        return;
+    }
+
+    for(size_t i = 0 ; i < addr_r->cant_addr ; i++) {
+        if(answers[i].rdlength == IPV4_LEN) {
+            struct sockaddr_in addr;
+            memset(&addr, 0, sizeof(struct sockaddr_in));
+            addr.sin_family = AF_INET;
+            addr.sin_addr.s_addr = ipv4_to_long(answers[i].rdata);
+            memcpy(&addr_r->origin_addr_res[i], (struct sockaddr_storage *)&addr, sizeof(addr));
+        }
+        else if(answers[i].rdlength == IPV6_LEN) {
+            struct sockaddr_in6 addr;
+            memset(&addr, 0, sizeof(struct sockaddr_in6));
+            addr.sin6_family = AF_INET6;
+            memcpy(addr.sin6_addr.__in6_u.__u6_addr8, answers[i].rdata, IPV6_LEN);
+            memcpy(&addr_r->origin_addr_res[i], (struct sockaddr_storage *)&addr, sizeof(addr));
+        }
+    }
+}
+
+
+int create_doh_request(fd_selector s, char *fqdn, int client_fd, struct addr_resolv * ar) {
 
     struct DoH* doh = malloc(sizeof(struct DoH));
 
@@ -105,6 +189,7 @@ int create_doh_request(fd_selector s, char *fqdn, struct addrinfo *origin_resolu
 
     doh_init(doh);
     doh->fqdn = fqdn;
+    doh->ar = ar;
 
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if(fd == -1){
@@ -118,7 +203,6 @@ int create_doh_request(fd_selector s, char *fqdn, struct addrinfo *origin_resolu
 
     doh->doh_fd = fd;
     doh->client_fd = client_fd;
-    doh->origin_resolution = origin_resolution;
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -206,57 +290,57 @@ a two octet code that specifies the class of the query.
 
 //ENCODER BASE64 URL
 
-char *b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+// char *b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
-size_t b64_encoded_size(size_t inlen){
-    size_t ret;
+// size_t b64_encoded_size(size_t inlen){
+//     size_t ret;
 
-    ret = inlen;
-    if (inlen % 3 != 0)
-        ret += 3 - (inlen % 3);
-    ret /= 3;
-    ret *= 4;
+//     ret = inlen;
+//     if (inlen % 3 != 0)
+//         ret += 3 - (inlen % 3);
+//     ret /= 3;
+//     ret *= 4;
 
-    return ret;
-}
+//     return ret;
+// }
 
-char *b64_encode(const char *in, size_t len){
+// char *b64_encode(const char *in, size_t len){
 
-    char   *out;
-    size_t  elen;
-    size_t  i;
-    size_t  j;
-    size_t  v;
+//     char   *out;
+//     size_t  elen;
+//     size_t  i;
+//     size_t  j;
+//     size_t  v;
 
-    if (in == NULL || len == 0)
-        return NULL;
+//     if (in == NULL || len == 0)
+//         return NULL;
 
-    elen = b64_encoded_size(len);
-    out  = malloc(elen+1);
-    out[elen] = '\0';
+//     elen = b64_encoded_size(len);
+//     out  = malloc(elen+1);
+//     out[elen] = '\0';
 
-    for (i=0, j=0; i<len; i+=3, j+=4) {
-        v = in[i];
-        v = i+1 < len ? v << 8 | in[i+1] : v << 8;
-        v = i+2 < len ? v << 8 | in[i+2] : v << 8;
+//     for (i=0, j=0; i<len; i+=3, j+=4) {
+//         v = in[i];
+//         v = i+1 < len ? v << 8 | in[i+1] : v << 8;
+//         v = i+2 < len ? v << 8 | in[i+2] : v << 8;
 
-        out[j]   = b64chars[(v >> 18) & 0x3F];
-        out[j+1] = b64chars[(v >> 12) & 0x3F];
+//         out[j]   = b64chars[(v >> 18) & 0x3F];
+//         out[j+1] = b64chars[(v >> 12) & 0x3F];
 
-        if (i+1 < len) {
-            out[j+2] = b64chars[(v >> 6) & 0x3F];
-        } else {
-            out[j+2] = '=';
-        }
-        if (i+2 < len) {
-            out[j+3] = b64chars[v & 0x3F];
-        } else {
-            out[j+3] = '=';
-        }
-    }
+//         if (i+1 < len) {
+//             out[j+2] = b64chars[(v >> 6) & 0x3F];
+//         } else {
+//             out[j+2] = '=';
+//         }
+//         if (i+2 < len) {
+//             out[j+3] = b64chars[v & 0x3F];
+//         } else {
+//             out[j+3] = '=';
+//         }
+//     }
 
-    return out;
-}
+//     return out;
+// }
 
 
 
@@ -266,7 +350,7 @@ char *b64_encode(const char *in, size_t len){
 static char * getQNAME (char *fqdn){
     int cant = strlen(fqdn);
     size_t new_fqdn_size = cant + 2;
-    char * new_fqdn = malloc(new_fqdn_size * sizeof(char));
+    char * new_fqdn = malloc(new_fqdn_size * sizeof(char) + 1);
     int pos = 0;
     int i;
 
@@ -281,48 +365,47 @@ static char * getQNAME (char *fqdn){
     }
     new_fqdn[pos] = i - pos;
     new_fqdn[i+1] = 0x00;
+    new_fqdn[new_fqdn_size] = 0x00;
 //printf("%s\n", new_fqdn);
     return new_fqdn;
 }
 
-// type = 0 -> ipv4
-// type = 1 -> ipv6
-char * dns_query_generator (char *fqdn, int type){
+char * dns_query_generator(char *fqdn, ip_type type, size_t *req_length){
     uint8_t query_dns_header[] ={0x00,0x00,0x01,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00};
     char * dns_query_name = getQNAME(fqdn);
-    int dns_query_name_len = strlen(dns_query_name);
+    size_t dns_query_name_len = strlen(dns_query_name) + 1;
 
-    int request_length = DNS_QUERY_HEADER + dns_query_name_len + 1 + DNS_QTYPE + DNS_QCLASS;
+    *req_length = DNS_QUERY_HEADER + dns_query_name_len + DNS_QTYPE + DNS_QCLASS;
 
-    char *dns_query = malloc(request_length);
+    uint8_t *dns_query = malloc(*req_length * sizeof(uint8_t) + 1);
 
 
 //printf("%s\n", query_dns_header);
     memcpy(dns_query, query_dns_header,DNS_QUERY_HEADER);
 // printf("%s\n", dns_query);
-    memcpy(dns_query + DNS_QUERY_HEADER, dns_query_name, dns_query_name_len + 1);
-    int i = DNS_QUERY_HEADER + dns_query_name_len + 1;
+    memcpy(dns_query + DNS_QUERY_HEADER, dns_query_name, dns_query_name_len);
+    int i = DNS_QUERY_HEADER + dns_query_name_len;
     dns_query[i++] = 0x00;
-    if (type == 0){
+
+    if (type == IPv4){
         dns_query[i++] = 0x01;
-    } else {
+    } else if(type == IPv6) {
         dns_query[i++] = 0x1C;
+    }
+    else {
+        dns_query[i++] = 0xFF;
     }
     dns_query[i++] = 0x00;
     dns_query[i] = 0x01;
+    dns_query[*req_length] = 0x00; //cero final
 
-    // for( int j = 0 ; j < request_length ; j++){
-    //     printf("%x ",dns_query[j]);
-    // }
+    int encode_len = Base64encode_len(*req_length);
 
-    //printf("\n\n");
-    
-    char *dns_query_encoded = b64_encode(dns_query,DNS_QUERY_HEADER + dns_query_name_len + 1 + DNS_QTYPE + DNS_QCLASS);
-    //printf("QUERY ENCODED\n");
-    //printf("%s\n", dns_query_encoded);
+    char *dns_query_encoded = malloc(encode_len + 1);
+    Base64encode(dns_query_encoded, dns_query, *req_length);
 
     free(dns_query);
-
+    free(dns_query_name);
 
     return dns_query_encoded;
 }
@@ -349,7 +432,7 @@ Accept: application/dns-message
     args->doh.query = "?dns=";
     usamos estos valores para formar la query dns sobre http */
 
-uint8_t * http_query_generator(char * fqdn, char * doh_host, char * doh_path, char * doh_query, int type){
+uint8_t * http_query_generator(struct DoH *doh, ip_type type){
 
     // Constantes que vamos a usar para armar el request
     char * doh_method = "GET ";
@@ -358,43 +441,41 @@ uint8_t * http_query_generator(char * fqdn, char * doh_host, char * doh_path, ch
     char * doh_accept_header = "Accept: application/dns-message\r\n\r\n";
 
     // Creo el request DNS y lo guardo en la variable dns_query_encoded
-    char * dns_query_encoded = dns_query_generator(fqdn, type);
+    char * dns_query_encoded = dns_query_generator(doh->fqdn, type, &doh->req_length);
     // Calculo la longitud total del request DoH
-    int http_query_length = strlen(doh_method) + strlen(doh_path) + strlen(doh_query) + strlen(dns_query_encoded) +
-                            strlen(doh_version) + strlen(doh_host_name) + strlen(doh_host) + strlen(doh_accept_header) + 1;
+    int http_query_length = strlen(doh_method) + strlen(doh->path) + strlen(doh->query) + strlen(dns_query_encoded) +
+                            strlen(doh_version) + strlen(doh_host_name) + strlen(doh->host) + strlen(doh_accept_header) + 1;
     
 /* The strcat() function appends the src string to the dest string,
        overwriting the terminating null byte ('\0') at the end of dest, and
        then adds a terminating null byte.
 --> strcpy escribe el null byte ('\0') al final del string pero luego con strcat lo sobreescribo
     */
-    uint8_t * http_query = malloc(http_query_length);
+    uint8_t * http_query = malloc(http_query_length + 1);
 
     strcpy((char *)http_query, doh_method);
-    strcat((char *)http_query, doh_path);
-    strcat((char *)http_query, doh_query);
+    strcat((char *)http_query, doh->path);
+    strcat((char *)http_query, doh->query);
     strcat((char *)http_query, dns_query_encoded);
     strcat((char *)http_query, doh_version);
     strcat((char *)http_query, doh_host_name);
-    strcat((char *)http_query, doh_host);
+    strcat((char *)http_query, doh->host);
     strcat((char *)http_query, doh_accept_header);
 
     /* Usado para testear que todo se este mandando correctamente
     printf("QUERY que se manda por HTTP\n");
     printf("%s\n", http_query ); */
 
+    free(dns_query_encoded);
     return http_query;
 }
 
 
-int doh_request_marshal(struct DoH *doh, int type) {
+int doh_request_marshal(struct DoH *doh, ip_type type) {
 
-    if (type!=0 && type!=1){
-        return -1;
-    }
     size_t n;
     uint8_t *buff = buffer_write_ptr(&doh->buff, &n);
-    uint8_t * doh_request = http_query_generator(doh->fqdn, doh->host, doh->path, doh->query, type);
+    uint8_t * doh_request = http_query_generator(doh, type);
     size_t doh_request_length = strlen((char *)doh_request);
     if (n < doh_request_length)
     {
@@ -402,6 +483,8 @@ int doh_request_marshal(struct DoH *doh, int type) {
     }
     strcpy((char *)buff, (char *)doh_request);
     buffer_write_adv(&doh->buff, doh_request_length);
+    free(doh_request);
+
     return doh_request_length;
 }
 

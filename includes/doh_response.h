@@ -58,7 +58,7 @@ enum doh_state
 
 
     // done section
-    doh_done,
+    doh_response_done,
 
     // errores para el doh body
     doh_error_request_lenght,
@@ -67,22 +67,22 @@ enum doh_state
 
 
 
-typedef struct doh_data{
+typedef struct doh_response {
     enum doh_state state;
 
     int status; //200 caso de éxito, otro caso error
     uint16_t  contentLength; //tamaño del body -> tamaño de la respuesta DNS
     int contentType;
     int anscount_aux;
-    struct dns_answers * answers;
-    int request_dns_length;
-    int aux_request_dns_length;
+    struct dns_parser * answers;
+    size_t request_dns_length;
+    size_t aux_request_dns_length;
 
     uint8_t headercounter;
     uint16_t answerscounter;
     uint16_t remaining;
     uint8_t read;
-}doh_data;
+}doh_response;
 
 
 /*
@@ -98,7 +98,7 @@ Each resource record has the following format:
 
 
 
-struct dns_answers{
+struct dns_parser{
     uint16_t rdlength;
     uint8_t * rdata;
 };
@@ -106,13 +106,13 @@ struct dns_answers{
 
 
 
-void doh_http_parser_init(struct http_parser *p, int length);
+void doh_http_parser_init(struct doh_response *p, size_t length);
 
-enum http_state doh_http_parser_feed(http_parser *p, uint8_t b);
+enum doh_state doh_http_parser_feed(doh_response *p, uint8_t b);
 
-enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b);
+enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b);
 
-enum doh_state doh_consume(buffer *b, auth_parser *p, bool *error);
+enum doh_state doh_consume(buffer *b, size_t req_length, doh_response *p, bool *error);
 
 bool doh_is_done(const enum doh_state state, bool *error);
 

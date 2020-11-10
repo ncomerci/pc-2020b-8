@@ -5,7 +5,6 @@
 
 #include "../includes/doh_response.h"
 
-
 const char * http_version = "HTTP";
 const char * success_code = "200";
 const char * header_content = "\r\nCONTENT-";
@@ -14,67 +13,55 @@ const char * header_content_length = "LENGTH:";
 const char * content_type_message = "application/dns-message";
 const char * header_end = "\r\n\r\n";
 
-char * doh_response = "HTTP/1.0 200 OK\r\nCONTENT-TYPE:application/dns-message\r\nHEADER-PRUEBA:hola\r\nCONTENT-LENGTH:40\r\n\r\n";
+// char * doh_response = "HTTP/1.0 200 OK\r\nCONTENT-TYPE:application/dns-message\r\nHEADER-PRUEBA:hola\r\nCONTENT-LENGTH:40\r\n\r\n";
 
-uint8_t dns_response[] = {0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01,
-                          0x00, 0x00, 0x00, 0x01, 0x06, 0x68, 0x75, 0x6d,
-                          0x61, 0x6e, 0x64, 0x02, 0x69, 0x6f, 0x00, 0x00,
-                          0x01, 0x00, 0x01, 0xc0, 0x0c, 0x00, 0x01, 0x00,
-                          0x01, 0x00, 0x00, 0x38, 0x40, 0x00, 0x04, 0xd5,
-                          0xbe, 0x06, 0x42, 0x00, 0x00, 0x29, 0x02, 0x00,
-                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+// uint8_t dns_response[] = {0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01,
+//                           0x00, 0x00, 0x00, 0x01, 0x06, 0x68, 0x75, 0x6d,
+//                           0x61, 0x6e, 0x64, 0x02, 0x69, 0x6f, 0x00, 0x00,
+//                           0x01, 0x00, 0x01, 0xc0, 0x0c, 0x00, 0x01, 0x00,
+//                           0x01, 0x00, 0x00, 0x38, 0x40, 0x00, 0x04, 0xd5,
+//                           0xbe, 0x06, 0x42, 0x00, 0x00, 0x29, 0x02, 0x00,
+//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-uint8_t dns_response_answers[] = {0x3f, 0x2b, 0x81, 0x80, 0x00, 0x01, 0x00, 0x02, 
-0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77, 
-0x04, 0x69, 0x74, 0x62, 0x61, 0x03, 0x65, 0x64, 
-0x75, 0x02, 0x61, 0x72, 0x00, 0x00, 0x01, 0x00, 
-0x01, 0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00, 
-0x00, 0x00, 0x3c, 0x00, 0x04, 0x12, 0xe5, 0xf3, 
-0x9f, 0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00, 
-0x00, 0x00, 0x3c, 0x00, 0x04, 0x12, 0xe5, 0xb5, 
-0xac, 0x00, 0x00, 0x29, 0x02, 0x00, 0x00, 0x00, 
-0x00, 0x00, 0x00, 0x00};
+// uint8_t dns_response_answers[] = {0x3f, 0x2b, 0x81, 0x80, 0x00, 0x01, 0x00, 0x02, 
+// 0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77, 
+// 0x04, 0x69, 0x74, 0x62, 0x61, 0x03, 0x65, 0x64, 
+// 0x75, 0x02, 0x61, 0x72, 0x00, 0x00, 0x01, 0x00, 
+// 0x01, 0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00, 
+// 0x00, 0x00, 0x3c, 0x00, 0x04, 0x12, 0xe5, 0xf3, 
+// 0x9f, 0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00, 
+// 0x00, 0x00, 0x3c, 0x00, 0x04, 0x12, 0xe5, 0xb5, 
+// 0xac, 0x00, 0x00, 0x29, 0x02, 0x00, 0x00, 0x00, 
+// 0x00, 0x00, 0x00, 0x00};
 
 
-static void remaining_set(http_parser *p, uint16_t n)
+static void remaining_set(doh_response *p, uint16_t n)
 {
     p->remaining = n;
     p->read = 0;
 }
 
 
-static int remaining_is_done(http_parser *p)
+static int remaining_is_done(doh_response *p)
 {
     return p->read >= p->remaining;
 }
 
 
 
-void doh_http_parser_init(struct http_parser *p, int length)
+void doh_http_parser_init(struct doh_response *p, size_t length)
 {
+    memset(p, 0, sizeof(doh_response));
     p->state = doh_version;
     p->answers = (struct dns_parser *) calloc(1, sizeof(struct dns_parser));
-    
-    p->contentType = 0;
-    p->contentLength = 0;
-    p->status = 0;
 
-    p->request_dns_length = length;
-
-
-    /* inicializo las variables */
-    p->headercounter = 0;
-    p->aux_request_dns_length = 0;
-    p->answerscounter = 0;
-    p->anscount_aux= 0;
-    p->remaining = 0;
-    p->read = 0;
+    p->request_dns_length = length ;
 }
 
 
 
 // Máquina de Estado para la respuesta HTTP
-enum http_state doh_http_parser_feed(http_parser *p, uint8_t b)
+enum doh_state doh_http_parser_feed(doh_response *p, uint8_t b)
 {
     switch (p->state)
     {
@@ -161,7 +148,7 @@ enum http_state doh_http_parser_feed(http_parser *p, uint8_t b)
 
         case doh_content_type_header:
 
-            if(header_content_type[p->read++] != b){
+            if(tolower(header_content_type[p->read++]) != tolower(b)){
                 p->read = 0;
                 p->state = doh_header;
             }
@@ -175,7 +162,7 @@ enum http_state doh_http_parser_feed(http_parser *p, uint8_t b)
 
         case doh_content_lenght_header:
             if(p->read < strlen(header_content_length)){
-                if(header_content_length[p->read++] != b){
+                if(tolower(header_content_length[p->read++]) != tolower(b)){
                     p->read = 0;
                     p->state = doh_header;
                 }
@@ -225,14 +212,10 @@ enum http_state doh_http_parser_feed(http_parser *p, uint8_t b)
             p->read = 0;
             break;
 
-/*
-    default:
-    fprintf(stderr, "unknown state %d\n", p->state);
-    abort();
-    break;
 
-        */
-
+        default:
+            abort();
+            break;
     }
 
     return p->state;
@@ -274,7 +257,7 @@ this information varies according to the TYPE and CLASS of the resource record)
 // TODO: inicializar el p->state
 
 
-enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
+enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
 {
     switch (p->state)
     {
@@ -310,7 +293,7 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
             if(p->read == DNS_ANCOUNT){
                 p->state = doh_dns_request_end;
                 p->read = 0;
-                //p->answers = calloc(p->answerscounter, sizeof(*p->answers));
+                p->answers = calloc(p->answerscounter, sizeof(*p->answers));
                 printf("Cantidad de respuestas: %d\n",p->answerscounter);
             }
             if(p->aux_request_dns_length++ >= p->request_dns_length){
@@ -372,8 +355,8 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                 }
                 printf("\n"); */
 
-                if(p->anscount_aux >= p->answerscounter){
-                    p->state = doh_done;
+                if(p->anscount_aux + 1 >= p->answerscounter){
+                    p->state = doh_response_done;
                 } else{
                     p->anscount_aux++;
                     p->read = 0;
@@ -381,14 +364,16 @@ enum doh_state doh_dns_parser_feed(http_parser *p, uint8_t b)
                 }
             }
             break;
+        default:
+            abort();
+            break;
         }
         return p->state;
     }
 
 
-enum doh_state doh_consume(buffer *b, auth_parser *p, bool *error) {
-    struct http_parser *p = malloc(sizeof(struct http_parser));
-    doh_http_parser_init(p,33);
+enum doh_state doh_consume(buffer *b, size_t req_length, doh_response *p, bool *error) {
+    doh_http_parser_init(p, req_length);
     enum doh_state st = p->state;
     bool finished = false;
     while (buffer_can_read(b) && !finished) {
@@ -400,7 +385,8 @@ enum doh_state doh_consume(buffer *b, auth_parser *p, bool *error) {
         }
         if(st == doh_body){
             int k = 0;
-            while(buffer_can_read(b) && !finished && k <= p->content-length){
+            p->state = doh_dns_request_start;
+            while(buffer_can_read(b) && !finished && k <= p->contentLength){
                 uint8_t byte = buffer_read(b);
                 st = doh_dns_parser_feed(p, byte);
                 if (doh_is_done(st, error)) {
@@ -424,7 +410,7 @@ bool doh_is_done(const enum doh_state state, bool *error) {
         }
         ret = true;
     }
-    else if (state == doh_done)
+    else if (state == doh_response_done)
     {
         ret = true;
     }
@@ -435,7 +421,7 @@ bool doh_is_done(const enum doh_state state, bool *error) {
 /* Utilizado para testear que la respuesta doh se esta parseando bien 
 int main(){
 
-    struct http_parser *p = malloc(sizeof(struct http_parser));
+    struct doh_response *p = malloc(sizeof(struct http_parser));
     doh_http_parser_init(p,33);
     int j;
     for(int i = 0; ;){
