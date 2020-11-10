@@ -1128,9 +1128,9 @@ static unsigned copy_r(struct selector_key *key)
     }
     else
     {
-        // if(is_origin(key) && get_args_data()->disectors_enabled){
-        //     pop3sniff(key,ptr,n);
-        // }
+        if(is_origin(key) && get_args_disectors_enabled()){
+            pop3sniff(key,ptr,n);
+        }
         buffer_write_adv(b, n);
         
         if(key->fd == ATTACHMENT(key)->client_fd && get_args_disectors_enabled()) {
