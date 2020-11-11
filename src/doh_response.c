@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <ctype.h>
 
 #include "../includes/doh_response.h"
@@ -251,8 +252,16 @@ this information varies according to the TYPE and CLASS of the resource record)
 #define DNS_HEADER_START 6 // ID + FLAGS + QUESTIONS
 #define DNS_ANCOUNT 2
 #define DNS_ANSWER_ATTS 10 // NAME + TYPE + CLASS + TTL
+#define DNS_ANSWER_NAME 2
+#define DNS_ANSWER_TYPE 2
+// #define DNS_ANSWER_CLASS 2
+// #define DNS_ANSWER_TTL 4
+#define DNS_TYPE_A 1 
+#define DNS_TYPE_AAAA 28
 
-// TODO: inicializar el p->state
+static bool is_valid_answer(uint16_t dns_type) {
+    return dns_type == DNS_TYPE_A || dns_type == DNS_TYPE_AAAA;
+}
 
 
 enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
@@ -328,7 +337,10 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
 
         case doh_dns_answer_atts:
             p->read++;
-            if(p->read >= DNS_ANSWER_ATTS){
+            if(p->read == DNS_ANSWER_NAME) {
+                p->state = doh_dns_answer_type;
+            }
+            else if(p->read + 1 >= DNS_ANSWER_ATTS){
                 p->read = 0;
                 p->state = doh_dns_answer_rdlength;
             }
@@ -339,28 +351,59 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
             }*/
             break;
 
+        case doh_dns_answer_type:
+            if(p->read < DNS_ANSWER_NAME + DNS_ANSWER_TYPE) {
+                (p->answers + p->anscount_aux)->dns_type = ((p->answers + p->anscount_aux)->dns_type << 8) | b ;
+                p->read++;
+            }
+            else {
+                p->state = doh_dns_answer_atts;
+            }
+            break;
+
         case doh_dns_answer_rdlength:
             if(p->read < RDLENGTH){
-                (p->answers + p->anscount_aux)->rdlength = (p->answers + p->anscount_aux)->rdlength * 10 + b ;
+                (p->answers + p->anscount_aux)->rdlength = ((p->answers + p->anscount_aux)->rdlength << 8) | b ;
                 p->read++;
             }
             if(p->read == RDLENGTH){
                 remaining_set(p, (p->answers + p->anscount_aux)->rdlength);
-                ((p->answers + p->anscount_aux)->rdata) = (uint8_t *)calloc(((p->answers + p->anscount_aux)->rdlength), sizeof(uint8_t));
-                if((p->answers + p->anscount_aux)->rdata == NULL)
-                {
-                    p->state = doh_error;
-                    return p->state;
+                if(is_valid_answer((p->answers + p->anscount_aux)->dns_type)) {
+                    ((p->answers + p->anscount_aux)->rdata) = (uint8_t *)calloc(((p->answers + p->anscount_aux)->rdlength), sizeof(uint8_t));
+                    if((p->answers + p->anscount_aux)->rdata == NULL)
+                    {
+                        p->state = doh_error;
+                        return p->state;
+                    }
+                    p->state = doh_dns_answer_rdata;
                 }
-                p->state = doh_dns_answer_rdata;
-                p->read = 0;
+                else {
+                    p->state = doh_dns_answer_skip;
+                }
 
+                p->read = 0;
             }
               /*
             if(p->contentLengthAux++ > p->contentLength){
                 p->state = doh_error_body_lenght;
                 return p->state;
             }*/
+            break;
+
+        case doh_dns_answer_skip:
+            p->read++;
+            if (remaining_is_done(p)) {
+                if(p->anscount_aux + 1 >= p->answerscounter){
+                    p->state = doh_response_done;
+                }
+                else {
+                    p->answerscounter--;
+                    p->answers = realloc(p->answers,  p->answerscounter*sizeof(*p->answers));
+                    memset(p->answers + p->anscount_aux, 0, sizeof(*p->answers));
+                    p->read = 0;
+                    p->state = doh_dns_answer_atts;
+                }
+            }
             break;
 
         case doh_dns_answer_rdata:

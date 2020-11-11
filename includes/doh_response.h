@@ -53,7 +53,9 @@ enum doh_state
     doh_dns_ancount,
     doh_dns_request_end,
     doh_dns_answer_atts,
+    doh_dns_answer_type,
     doh_dns_answer_rdlength,
+    doh_dns_answer_skip,
     doh_dns_answer_rdata,
 
 
@@ -100,6 +102,7 @@ Each resource record has the following format:
 
 
 struct dns_parser{
+    uint16_t dns_type;
     uint16_t rdlength;
     uint8_t * rdata;
 };
