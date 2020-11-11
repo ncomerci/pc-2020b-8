@@ -9,7 +9,7 @@ OFILES=$(patsubst %.c,./%.o,$(FILES))
 CFLAGS = -Wall -Wextra -pedantic -pedantic-errors -pthread \
 	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
 
-DEBUG_FLAGS = -Wall -Wextra -pedantic -pedantic-errors -pthread \
+DEBUG_FLAGS = -Wall -Wextra -pedantic -pedantic-errors \
 	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
 
 %.o: %.c $(HFILES)

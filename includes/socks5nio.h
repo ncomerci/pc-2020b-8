@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <time.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <arpa/inet.h>
 #include "hello.h"
 #include "request.h"
@@ -19,6 +18,7 @@
 #include "auth.h"
 #include "logger.h"
 #include "httpsniff.h"
+#include "doh.h"
 #include "pop3sniff.h"
 #include "main.h"
 #include "args.h"

@@ -74,18 +74,6 @@ stm_handler_write(struct state_machine *stm, struct selector_key *key) {
     return ret;
 }
 
-unsigned
-stm_handler_block(struct state_machine *stm, struct selector_key *key) {
-    handle_first(stm, key);
-    if(stm->current->on_block_ready == 0) {
-        abort();
-    }
-    const unsigned int ret = stm->current->on_block_ready(key);
-    jump(stm, ret, key);
-
-    return ret;
-}
-
 void
 stm_handler_close(struct state_machine *stm, struct selector_key *key) {
     if(stm->current != NULL && stm->current->on_departure != NULL) {

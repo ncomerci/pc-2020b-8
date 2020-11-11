@@ -5,6 +5,8 @@
 #include <unistd.h>  // size_t, ssize_t
 #include <stdint.h>
 
+#define MAX_BUFF_SIZE 2048
+
 /**
  * buffer.c - buffer con acceso directo (útil para I/O) que mantiene
  *            mantiene puntero de lectura y de escritura.
