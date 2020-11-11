@@ -7,7 +7,7 @@
 #include "buffer.h"
 #include "logger.h"
 #define MAX_SIZE_CRED 255
-#define MAX_BUFF_SIZE 2048
+#define MAX_BUFF_POP3_SIZE 2048
 
 enum pop3sniff_state
 {
@@ -64,7 +64,7 @@ struct pop3_sniffer{
     enum pop3sniff_state state;
 
     buffer buffer;
-    uint8_t raw_buff[MAX_BUFF_SIZE];
+    uint8_t raw_buff[MAX_BUFF_POP3_SIZE];
     char username[MAX_SIZE_CRED];
     char password[MAX_SIZE_CRED];
     uint8_t read;
