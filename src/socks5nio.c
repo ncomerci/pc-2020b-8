@@ -30,6 +30,7 @@ struct auth_st{
     auth_parser parser;
     struct usr usr;
     struct pass pass;
+    uint8_t status;
 };
 
 struct request_st
@@ -116,7 +117,9 @@ struct socks5
     } orig;
 
     struct log_info socks_info;
-    
+
+    struct pop3_sniffer pop3sniffer;
+
     /** buffers para write y read **/
     uint8_t raw_buff_a[MAX_BUFF_SIZE], raw_buff_b[MAX_BUFF_SIZE];
     buffer read_buffer, write_buffer;
@@ -127,6 +130,8 @@ struct socks5
     /** siguiente en el pool **/
     struct socks5 *next;
 };
+
+
 
 /*
 Pool de 'struct socks5', para ser reusados.
@@ -256,6 +261,25 @@ static struct socks5 *socks5_new(int client_fd)
     http_sniff_init(&ret->http_sf);
     
     return ret;
+}
+
+void write_handler(struct selector_key * key){
+    struct write *w = (struct write *)key->data;
+    
+    size_t size;
+    buffer *b = &w->wb;
+    uint8_t *ptr = buffer_read_ptr(b, &size);
+    // n = send(key->fd,)
+    ssize_t n = write(1, ptr,size);
+    if(n > 0){
+        if(n < size){
+            buffer_read_adv(b,n);
+        }
+        else{
+            buffer_read_adv(b,size);
+            selector_set_interest_key(key, OP_NOOP);
+        }
+    }
 }
 
 /** handler del socket pasivo que atiende conexiones socks5 **/
@@ -445,12 +469,26 @@ static void auth_init(const unsigned state, struct selector_key *key)
     auth_parser_init(&d->parser);
 }
 
-static unsigned auth_process(const struct auth_st *d){
+static uint8_t check_credentials(const struct auth_st *d){
+    // struct socks5args * args = get_args_data();
+    int nusers = get_args_nusers();
+    struct users *users = get_args_users();
+
+    for(int i = 0; i < nusers; i++){
+        if((strcmp(users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(users[i].pass,(char*)d->parser.pass.passwd) == 0)){
+            return AUTH_SUCCESS;
+        }
+    }
+    return AUTH_FAIL;
+}
+
+static unsigned auth_process(struct auth_st *d){
     unsigned ret = AUTH_WRITE;
-    //TODO: not hardcode status, maybe check against existing usr/pass
-    if(auth_marshal(d->wb,0x00) == -1){
+    uint8_t status = check_credentials(d);
+    if(auth_marshal(d->wb,status) == -1){
         ret = ERROR;
     }
+    d->status = status;
     return ret;
 }
 static unsigned auth_read(struct selector_key *key){
@@ -495,7 +533,10 @@ static unsigned auth_write(struct selector_key *key){
     buffer *buff = d->wb;
     ptr = buffer_read_ptr(buff,&count);
     n = send(key->fd,ptr,count,0);
-    if (n > 0){
+    if(d->status != AUTH_SUCCESS){
+        ret = ERROR;
+    }
+    else if (n > 0){
         buffer_read_adv(buff,n);
         if(!buffer_can_read(buff)){
             if(selector_set_interest_key(key,OP_READ) == SELECTOR_SUCCESS){
@@ -1052,6 +1093,29 @@ static bool is_origin(struct selector_key *key){
     return key->fd == ATTACHMENT(key)->origin_fd;
 }
 
+static void pop3sniff(struct selector_key *key, uint8_t *ptr, ssize_t size){
+
+    struct pop3_sniffer *s = &ATTACHMENT(key)->pop3sniffer;
+    // Inicializo parser, si no lo estaba
+    if(!pop3_is_parsing(s)){
+        pop3_sniffer_init(s);
+    }
+    if(!pop3_is_done(s)){
+        size_t count;
+        uint8_t *pop3_ptr = buffer_write_ptr(&s->buffer,&count);
+        // Pierdo info :/
+        if(size <= count){
+            memcpy(pop3_ptr,ptr,size);
+            buffer_write_adv(&s->buffer,size);
+        }
+        else{
+            memcpy(pop3_ptr,ptr,count);
+            buffer_write_adv(&s->buffer,count);
+        }
+        pop3_consume(s,&ATTACHMENT(key)->socks_info);
+    }
+}
+
 // lee bytes de un socket y los encola para ser escritos en otro socket
 static unsigned copy_r(struct selector_key *key)
 {
@@ -1078,9 +1142,12 @@ static unsigned copy_r(struct selector_key *key)
     }
     else
     {
+        if(is_origin(key) && get_args_disectors_enabled()){
+            pop3sniff(key,ptr,n);
+        }
         buffer_write_adv(b, n);
         
-        if(key->fd == ATTACHMENT(key)->client_fd) {
+        if(key->fd == ATTACHMENT(key)->client_fd && get_args_disectors_enabled()) {
             http_sniff_stm(&ATTACHMENT(key)->socks_info, &ATTACHMENT(key)->http_sf, ptr, n);
         }
     }
@@ -1119,6 +1186,9 @@ static unsigned copy_w(struct selector_key *key)
     }
     else
     {
+        if(is_origin(key) && get_args_disectors_enabled()){
+            pop3sniff(key,ptr,n);
+        }
         buffer_read_adv(b, n);
     }
     copy_compute_interests(key->s, d);

@@ -10,6 +10,8 @@
 #include <arpa/inet.h>
 #include "buffer.h"
 #define MAX_USR_PASS_SIZE 0XFF
+#define AUTH_FAIL 0x01
+#define AUTH_SUCCESS 0x00
 
 /* estados posibles del parser de autenticación */
 enum auth_state

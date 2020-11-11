@@ -146,7 +146,7 @@ static void decoder(char * match, struct log_info *socks_info) {
     const char* delim = ":";
     socks_info->user = strtok(decoded_str, delim);
     socks_info->passwd = strtok(NULL, delim);
-    socks_info->protcol = HTTP;
+    socks_info->protocol = HTTP;
 
     log_sniff(socks_info);
     free(decoded_str); // este free puede traer problemas con el log no bloqueante
