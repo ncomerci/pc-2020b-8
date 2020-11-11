@@ -1,6 +1,5 @@
 #ifndef SOCKS5NIO_H
 #define SOCKS5NIO_H
-#define MAX_BUFF_SIZE 2048
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,9 +22,8 @@
 #include "pop3sniff.h"
 #include "main.h"
 #include "args.h"
-
+#define MAX_BUFF_SIZE 2048
 #define N(x) (sizeof(x)/sizeof((x)[0]))
-#define ATTACHMENT(key) ( (struct socks5 *)(key)->data)
 
 struct write{
     uint8_t raw_buff[MAX_BUFF_SIZE];

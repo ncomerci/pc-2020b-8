@@ -7,7 +7,7 @@ FILES=$(shell find $(SRC) -name '*.c' | sed 's/^.\///')
 OFILES=$(patsubst %.c,./%.o,$(FILES))
 
 CFLAGS = -Wall -Wextra -pedantic -pedantic-errors -pthread \
-	-std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
+	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
 
 DEBUG_FLAGS = -Wall -Wextra -pedantic -pedantic-errors -pthread \
 	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)

@@ -45,9 +45,9 @@ struct socks5args
  * args con defaults o la seleccion humana. Puede cortar
  * la ejecuciÃ³n.
  */
-void parse_args(const int argc, char **argv, struct socks5args *args);
+// void parse_args(const int argc, char **argv, struct socks5args *args);
 
-void parse_args2(const int argc, char **argv);
+void parse_args(const int argc, char **argv);
 
 
 void free_args();
@@ -62,6 +62,10 @@ unsigned short get_args_socks_port();
 struct users* get_args_users();
 
 bool get_args_disectors_enabled();
+
+char * get_args_mng_addr();
+
+unsigned short get_args_mng_port();
 
 char * get_args_doh_ip();
 void set_args_doh_ip(char * new_ip);

@@ -1,6 +1,6 @@
 #include "../includes/auth.h"
 
-void auth_parser_init(struct auth_parser *p)
+void auth_parser_init(struct auth_parser *p,enum auth_type type)
 {
     p->state = auth_version;
     memset(&p->usr, 0, sizeof(p->usr));
@@ -14,6 +14,18 @@ void auth_parser_init(struct auth_parser *p)
         p->state = auth_error;
         return;
     }
+    // switch (type)
+    // {
+    // case AUTH_SOCKS:
+    //     p->version = 0x01;
+    //     break;
+    // case AUTH_MNG:
+    //     p->version = 0x01;
+    // default:
+    //     // Tipo no soportado
+    //     p->state = auth_error;
+    //     break;
+    // }
 
     p->remaining = 0;
     p->read = 0;
@@ -181,7 +193,7 @@ bool auth_is_done(const enum auth_state state, bool *error)
 }
 
 
-int auth_marshal(buffer *b, const uint8_t status)
+int auth_marshal(buffer *b, const uint8_t status, uint8_t version)
 {
     size_t n;
     uint8_t *buff = buffer_write_ptr(b, &n);

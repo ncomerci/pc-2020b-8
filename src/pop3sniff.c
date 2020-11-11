@@ -1,5 +1,6 @@
 #include "../includes/pop3sniff.h"
 #define INITIAL_SIZE 50
+
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 
 static const char * OK = "+OK";

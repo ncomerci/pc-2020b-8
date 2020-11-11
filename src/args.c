@@ -38,7 +38,7 @@ user(char *s, struct users *user)
 static void
 version(void)
 {
-    fprintf(stderr, "socks5v version 1.0\n"
+    fprintf(stderr, "socks5d version 1.0\n"
                     "ITBA Protocolos de Comunicación 2020/2 -- Grupo 8\n"
                     "AQUI VA LA LICENCIA\n");
 }
@@ -55,13 +55,13 @@ usage(const char *progname)
             "   -p <SOCKS port>  Puerto entrante conexiones SOCKS. Por defecto el valor es 1080\n"
             "   -P <conf port>   Puerto entrante conexiones configuracion. Por defecto el valor es 8080\n"
             "   -u <name>:<pass> Usuario y contraseña de usuario que puede usar el proxy. Hasta 10.\n"
-            "   -v               Imprime información sobre la versión versión y termina.\n"
+            "   -v               Imprime información sobre la versión y termina.\n"
             "\n"
             "   --doh-ip    <ip>    Establece la dirección del servidor DoH. Por defecto 127.0.0.1.\n"
             "   --doh-port  <port>  Establece el puerto del servidor DoH. Por defecto 8053.\n"
             "   --doh-host  <host>  Establece el valor del header Host. Por defecto localhost.\n"
             "   --doh-path  <host>  Establece el path del request doh. por defecto /getnsrecord.\n"
-            "   --doh-query <host>  Establece el query string si el request DoH utiliza el método Doh por defecto ?dns=.\n"
+            "   --doh-query <host>  Establece el query string si el request DoH utiliza el método DoH por defecto ?dns=.\n"
 
             "\n",
             progname);
@@ -82,6 +82,14 @@ unsigned short get_args_socks_port(){
 
 bool get_args_disectors_enabled(){
     return args->disectors_enabled;
+}
+
+char * get_args_mng_addr(){
+    return args->mng_addr;
+}
+
+unsigned short get_args_mng_port(){
+    return args->mng_port;
 }
 
 int get_args_nusers(){
@@ -165,7 +173,7 @@ int rm_user(char * user){
     return -1;
 }
 
-void parse_args2(const int argc, char **argv)
+void parse_args(const int argc, char **argv)
 {
     // ---------NEW 
     args = (struct socks5args *) malloc(sizeof(*args));
@@ -276,106 +284,106 @@ void parse_args2(const int argc, char **argv)
     }
 }
 
-void parse_args(const int argc, char **argv, struct socks5args *args)
-{
-    memset(args, 0, sizeof(*args)); // sobre todo para setear en null los punteros de users
+// void parse_args(const int argc, char **argv, struct socks5args *args)
+// {
+//     memset(args, 0, sizeof(*args)); // sobre todo para setear en null los punteros de users
 
-    args->socks_addr = "0.0.0.0";
-    args->socks_port = 1080;
+//     args->socks_addr = "0.0.0.0";
+//     args->socks_port = 1080;
 
-    args->mng_addr = "127.0.0.1";
-    args->mng_port = 8080;
+//     args->mng_addr = "127.0.0.1";
+//     args->mng_port = 8080;
 
-    args->disectors_enabled = true;
+//     args->disectors_enabled = true;
 
-    args->doh.host = "localhost";
-    args->doh.ip = "127.0.0.1";
-    args->doh.port = 8053;
-    args->doh.path = "/getnsrecord";
-    args->doh.query = "?dns=";
+//     args->doh.host = "localhost";
+//     args->doh.ip = "127.0.0.1";
+//     args->doh.port = 8053;
+//     args->doh.path = "/getnsrecord";
+//     args->doh.query = "?dns=";
 
-    int c;
-    args->nusers = 0;
+//     int c;
+//     args->nusers = 0;
 
-    while (true)
-    {
-        int option_index = 0;
-        static struct option long_options[] = {
-            {"doh-ip", required_argument, 0, 0xD001},
-            {"doh-port", required_argument, 0, 0xD002},
-            {"doh-host", required_argument, 0, 0xD003},
-            {"doh-path", required_argument, 0, 0xD004},
-            {"doh-query", required_argument, 0, 0xD005},
-            {0, 0, 0, 0}};
+//     while (true)
+//     {
+//         int option_index = 0;
+//         static struct option long_options[] = {
+//             {"doh-ip", required_argument, 0, 0xD001},
+//             {"doh-port", required_argument, 0, 0xD002},
+//             {"doh-host", required_argument, 0, 0xD003},
+//             {"doh-path", required_argument, 0, 0xD004},
+//             {"doh-query", required_argument, 0, 0xD005},
+//             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "hl:L:Np:P:u:v", long_options, &option_index);
-        if (c == -1)
-            break;
+//         c = getopt_long(argc, argv, "hl:L:Np:P:u:v", long_options, &option_index);
+//         if (c == -1)
+//             break;
 
-        switch (c)
-        {
-        case 'h':
-            usage(argv[0]);
-            break;
-        case 'l':
-            args->socks_addr = optarg;
-            break;
-        case 'L':
-            args->mng_addr = optarg;
-            break;
-        case 'N':
-            args->disectors_enabled = false;
-            break;
-        case 'p':
-            args->socks_port = port(optarg);
-            break;
-        case 'P':
-            args->mng_port = port(optarg);
-            break;
-        case 'u':
-            if (args->nusers >= MAX_USERS)
-            {
-                fprintf(stderr, "maximun number of command line users reached: %d.\n", MAX_USERS);
-                exit(1);
-            }
-            else
-            {
-                user(optarg, args->users + args->nusers);
-                args->nusers++;
-            }
-            break;
-        case 'v':
-            version();
-            exit(0);
-            break;
-        case 0xD001:
-            args->doh.ip = optarg;
-            break;
-        case 0xD002:
-            args->doh.port = port(optarg);
-            break;
-        case 0xD003:
-            args->doh.host = optarg;
-            break;
-        case 0xD004:
-            args->doh.path = optarg;
-            break;
-        case 0xD005:
-            args->doh.query = optarg;
-            break;
-        default:
-            fprintf(stderr, "unknown argument %d.\n", c);
-            exit(1);
-        }
-    }
-    if (optind < argc)
-    {
-        fprintf(stderr, "argument not accepted: ");
-        while (optind < argc)
-        {
-            fprintf(stderr, "%s ", argv[optind++]);
-        }
-        fprintf(stderr, "\n");
-        exit(1);
-    }
-}
+//         switch (c)
+//         {
+//         case 'h':
+//             usage(argv[0]);
+//             break;
+//         case 'l':
+//             args->socks_addr = optarg;
+//             break;
+//         case 'L':
+//             args->mng_addr = optarg;
+//             break;
+//         case 'N':
+//             args->disectors_enabled = false;
+//             break;
+//         case 'p':
+//             args->socks_port = port(optarg);
+//             break;
+//         case 'P':
+//             args->mng_port = port(optarg);
+//             break;
+//         case 'u':
+//             if (args->nusers >= MAX_USERS)
+//             {
+//                 fprintf(stderr, "maximun number of command line users reached: %d.\n", MAX_USERS);
+//                 exit(1);
+//             }
+//             else
+//             {
+//                 user(optarg, args->users + args->nusers);
+//                 args->nusers++;
+//             }
+//             break;
+//         case 'v':
+//             version();
+//             exit(0);
+//             break;
+//         case 0xD001:
+//             args->doh.ip = optarg;
+//             break;
+//         case 0xD002:
+//             args->doh.port = port(optarg);
+//             break;
+//         case 0xD003:
+//             args->doh.host = optarg;
+//             break;
+//         case 0xD004:
+//             args->doh.path = optarg;
+//             break;
+//         case 0xD005:
+//             args->doh.query = optarg;
+//             break;
+//         default:
+//             fprintf(stderr, "unknown argument %d.\n", c);
+//             exit(1);
+//         }
+//     }
+//     if (optind < argc)
+//     {
+//         fprintf(stderr, "argument not accepted: ");
+//         while (optind < argc)
+//         {
+//             fprintf(stderr, "%s ", argv[optind++]);
+//         }
+//         fprintf(stderr, "\n");
+//         exit(1);
+//     }
+// }

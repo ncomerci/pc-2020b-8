@@ -1,4 +1,5 @@
 #include "../includes/socks5nio.h"
+#define ATTACHMENT(key) ( (struct socks5 *)(key)->data)
 
 enum socks_v5state
 {
@@ -28,8 +29,8 @@ struct hello_st
 struct auth_st{
     buffer *rb, *wb;
     auth_parser parser;
-    struct usr usr;
-    struct pass pass;
+    struct usr* usr;
+    struct pass* pass;
     uint8_t status;
 };
 
@@ -456,14 +457,16 @@ static unsigned hello_write(struct selector_key *key)
 // AUTH
 ////////////////////////////////////////////////////////////////////////
 
-// inicializa las variables de los estados HELLO_...
+// inicializa las variables de los estados AUTH...
 static void auth_init(const unsigned state, struct selector_key *key)
 {
     struct auth_st *d = &ATTACHMENT(key)->client.auth;
 
     d->rb = &(ATTACHMENT(key)->read_buffer);
     d->wb = &(ATTACHMENT(key)->write_buffer);
-    auth_parser_init(&d->parser);
+    auth_parser_init(&d->parser,AUTH_SOCKS);
+    d->usr = &d->parser.usr;
+    d->pass = &d->parser.pass;
 }
 
 static uint8_t check_credentials(const struct auth_st *d){
@@ -472,7 +475,10 @@ static uint8_t check_credentials(const struct auth_st *d){
     struct users *users = get_args_users();
 
     for(int i = 0; i < nusers; i++){
-        if((strcmp(users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(users[i].pass,(char*)d->parser.pass.passwd) == 0)){
+        // if((strcmp(users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(users[i].pass,(char*)d->parser.pass.passwd) == 0)){
+        //     return AUTH_SUCCESS;
+        // }
+        if((strcmp(users[i].name,(char*)d->usr->uname) == 0) && (strcmp(users[i].pass,(char*)d->pass->passwd) == 0)){
             return AUTH_SUCCESS;
         }
     }
@@ -482,7 +488,7 @@ static uint8_t check_credentials(const struct auth_st *d){
 static unsigned auth_process(struct auth_st *d){
     unsigned ret = AUTH_WRITE;
     uint8_t status = check_credentials(d);
-    if(auth_marshal(d->wb,status) == -1){
+    if(auth_marshal(d->wb,status,d->parser.version) == -1){
         ret = ERROR;
     }
     d->status = status;
@@ -510,12 +516,14 @@ static unsigned auth_read(struct selector_key *key){
                 
             }
             else{
+                error = true;
                 ret = ERROR;
             }
         }
 
     }
     else{
+        error = true;
         ret = ERROR;
     }
     return error ? ERROR : ret;
@@ -529,7 +537,7 @@ static unsigned auth_write(struct selector_key *key){
     ssize_t n;
     buffer *buff = d->wb;
     ptr = buffer_read_ptr(buff,&count);
-    n = send(key->fd,ptr,count,0);
+    n = send(key->fd,ptr,count,MSG_NOSIGNAL);
     if(d->status != AUTH_SUCCESS){
         ret = ERROR;
     }
@@ -1128,9 +1136,9 @@ static unsigned copy_r(struct selector_key *key)
     }
     else
     {
-        // if(is_origin(key) && get_args_data()->disectors_enabled){
-        //     pop3sniff(key,ptr,n);
-        // }
+        if(is_origin(key) && get_args_disectors_enabled()){
+            pop3sniff(key,ptr,n);
+        }
         buffer_write_adv(b, n);
         
         if(key->fd == ATTACHMENT(key)->client_fd && get_args_disectors_enabled()) {

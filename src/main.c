@@ -28,6 +28,8 @@
 #include "../includes/socks5nio.h"
 #include "../includes/args.h"
 #include "../includes/main.h"
+#define MAX_PENDING_CONNECTIONS 20
+
 static bool done = false;
 
 static void
@@ -37,15 +39,12 @@ sigterm_handler(const int signal)
     done = true;
 }
 
-struct socks5args* args = NULL;
 struct write *write_data = NULL;
 
-struct socks5args* get_args_data(){
-    return args;
-}
 struct write* get_write_data(){
     return write_data;
 }
+
 int main(const int argc, char **argv)
 {
 
@@ -55,7 +54,7 @@ int main(const int argc, char **argv)
     const char *err_msg = NULL;
 
 
-    parse_args2(argc, argv);
+    parse_args(argc, argv);
     // parse_args(argc, argv, args);
 
     selector_status ss = SELECTOR_SUCCESS;
@@ -72,8 +71,8 @@ int main(const int argc, char **argv)
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(args->socks_port);
+    inet_pton(AF_INET,get_args_socks_addr(),&addr.sin_addr);
+    addr.sin_port = htons(get_args_socks_port());
 
     const int server4_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (server4_fd < 0)
@@ -82,7 +81,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stdout, "Listening on ipv4 TCP port %d\n", args->socks_port);
+    fprintf(stdout, "Listening on ipv4 TCP port %d\n", get_args_socks_port());
 
     // man 7 ip. no importa reportar nada si falla.
     setsockopt(server4_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
@@ -93,7 +92,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
     //TODO: change MAX PENDING CONNECTIONS
-    if (listen(server4_fd, 20) < 0)
+    if (listen(server4_fd, MAX_PENDING_CONNECTIONS) < 0)
     {
         err_msg = "unable to listen on ipv4 socket";
         goto finally;
@@ -111,12 +110,11 @@ int main(const int argc, char **argv)
     }
 
     ///////////////////////////////////////////////////////////// IPv6
-    // TODO: create IPv6 socket
     struct sockaddr_in6 addr6;
     memset(&addr6, 0, sizeof(addr6));
     addr6.sin6_family = AF_INET6;
     addr6.sin6_addr = in6addr_any;
-    addr6.sin6_port = htons(args->socks_port);
+    addr6.sin6_port = htons(get_args_socks_port());
     
     const int server6_fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
     if (server6_fd < 0)
@@ -125,13 +123,9 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stdout, "Listening on ipv6 TCP port %d\n", args->socks_port);
+    fprintf(stdout, "Listening on ipv6 TCP port %d\n", get_args_socks_port());
     // fprintf(stdout, "Listening on ipv6 fd %d\n", server6_fd);
-
-    if (setsockopt(server6_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0 ) {
-        err_msg = "setsockopt(SO_REUSEADDR) failed";
-        goto finally;
-    }
+    setsockopt(server6_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
     if (setsockopt(server6_fd, SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int)) < 0 ) {
         err_msg = "setsockopt(IPV6_V6ONLY) failed";
@@ -144,7 +138,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    if (listen(server6_fd, 20) < 0)
+    if (listen(server6_fd, MAX_PENDING_CONNECTIONS) < 0)
     {
         err_msg = "unable to listen on ipv6 socket";
         goto finally;
@@ -153,6 +147,36 @@ int main(const int argc, char **argv)
     if (selector_fd_set_nio(server6_fd) == -1)
     {
         err_msg = "getting server ipv4 socket flags";
+        goto finally;
+    }
+
+    // create SCTP socket for configuration
+    int mng_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
+
+    struct sockaddr_in mng_addr;
+    mng_addr.sin_family = AF_INET;
+    inet_pton(AF_INET,get_args_mng_addr(),&mng_addr.sin_addr);
+    mng_addr.sin_port = htons(get_args_mng_port());
+
+    // fprintf(stdout, "Listening on configuration SCTP port %d\n", args->socks_port);
+    setsockopt(mng_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+    
+    if (bind(mng_fd, (struct sockaddr *)&mng_addr, sizeof(mng_addr)) < 0)
+    {
+        err_msg = "unable to bind configuration socket";
+        goto finally;
+    }
+    
+    //TODO: change MAX PENDING CONNECTIONS
+    if (listen(mng_fd, MAX_PENDING_CONNECTIONS) < 0)
+    {
+        err_msg = "unable to listen on configuration socket";
+        goto finally;
+    }
+
+    if (selector_fd_set_nio(mng_fd) == -1)
+    {
+        err_msg = "getting server configuration socket flags";
         goto finally;
     }
 
@@ -198,6 +222,16 @@ int main(const int argc, char **argv)
         err_msg = "registering ipv6 fd";
         goto finally;
     }
+
+    const struct fd_handler mng_handler = {
+        .handle_read = mng_passive_accept,
+        .handle_write = NULL,
+        .handle_close = NULL, // nada que liberar
+    };
+
+    //registering configuration passive socket
+    ss = selector_register(selector, mng_fd, &mng_handler, OP_READ, NULL);
+
 
     const struct fd_handler stdout_handler = {
         .handle_read = NULL,
@@ -265,7 +299,7 @@ finally:
     //     free(args);
     // }
     free_args();
-    
+
     if (selector != NULL)
     {
         selector_destroy(selector);

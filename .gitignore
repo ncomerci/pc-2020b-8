@@ -62,3 +62,6 @@ server_iterativo
 .gdb_history
 
 socks5d
+
+# client executable
+client/client
