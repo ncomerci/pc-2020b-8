@@ -244,6 +244,8 @@ static struct socks5 *socks5_new(int client_fd)
     ret->client_fd = client_fd;
     ret->client_addr_len = sizeof(ret->client_addr);
 
+    ret->client.request.addr_resolv.ip_type = IPv4; // IP default a resolver
+
     ret->stm.states = client_statbl;
     ret->stm.initial = HELLO_READ;
     ret->stm.max_state = ERROR;
@@ -699,9 +701,18 @@ static unsigned request_resolv_done(struct selector_key *key)
 
     if (d->addr_resolv.cant_addr == 0)
     {
-        if(d->status != status_ttl_expired) {
+        if(d->addr_resolv.ip_type + 1 < IP_CANT_TYPES) {
+            d->addr_resolv.ip_type++;
+            return request_process(key, d);
+        }
+        else if(d->addr_resolv.status != status_succeeded) {
+            d->status = d->addr_resolv.status;
+        }
+        else if(d->status != status_ttl_expired) {
             d->status = status_general_socks_server_failure;
         }
+
+        s->socks_info.status = d->status;
         goto fail;
     }
     else
@@ -770,8 +781,19 @@ static void request_connecting_init(const unsigned state, struct selector_key *k
 static unsigned request_connect(struct selector_key *key, struct request_st *d)
 {
     bool error = false;
+    bool fd_registered = false;
     struct socks5 *data = ATTACHMENT(key);
     int *fd = d->origin_fd;
+
+    if(*fd != -1) { // si fd es distinto de -1 es porque hubo antes una conexión fallida
+        fd_registered = true;
+
+        if(close(*fd) == -1) {
+            error = true;
+            goto finally;
+        }
+    }
+
     const char *err_msg = NULL;
     unsigned ret = REQUEST_CONNECTING;
     *fd = socket(data->origin_domain, SOCK_STREAM, 0);
@@ -804,14 +826,19 @@ static unsigned request_connect(struct selector_key *key, struct request_st *d)
             }
 
             // esperamos la conexión en el nuevo socket
-            st = selector_register(key->s, *fd, &socks5_handler, OP_WRITE, key->data);
+            if(!fd_registered) {
+                st = selector_register(key->s, *fd, &socks5_handler, OP_WRITE, key->data);
+            }
+            else {
+                st = selector_set_interest(key->s, *fd, OP_WRITE);
+            }
 
             if (st != SELECTOR_SUCCESS)
             {
                 error = true;
                 goto finally;
             }
-            data->references += 1;
+            data->references += 1; // TODO: limpiar pooling
         }
         else
         {
@@ -861,16 +888,20 @@ static unsigned request_connecting(struct selector_key *key)
         }
         else {
             data->client.request.status = errno_to_socks(error);
-            if(data->client.request.status == status_ttl_expired) {
 
-                if(SELECTOR_SUCCESS != selector_set_interest_key(key, OP_NOOP)) {
-                    return ERROR;
-                }
-                ATTACHMENT(key)->socks_info.status = data->client.request.status;
-                return REQUEST_RESOLV;
+            if(SELECTOR_SUCCESS != selector_set_interest_key(key, OP_NOOP)) {
+                return ERROR;
             }
+
+            ATTACHMENT(key)->socks_info.status = data->client.request.status;
+            log_access(&ATTACHMENT(key)->socks_info);
+            return REQUEST_RESOLV;
         }
 
+        // struct request_st *d = &data->client.request;
+        // if(d->addr_resolv.cant_addr == 0 && d->addr_resolv.ip_type + 1 >= IP_CANT_TYPES) {
+
+        // }
         if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
         {
             selector_set_interest(key->s, *data->orig.conn.origin_fd, OP_READ);

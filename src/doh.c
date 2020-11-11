@@ -74,7 +74,8 @@ static void doh_write(struct selector_key *key) {
         }
         else {
             size_t count;
-            doh_request_marshal(doh, IPv4);
+
+            doh_request_marshal(doh, doh->ar->ip_type);
 
             uint8_t * ptr = buffer_read_ptr(&doh->buff, &count);
             ssize_t n = send(key->fd, ptr, count, MSG_NOSIGNAL);
@@ -108,7 +109,7 @@ static void doh_read(struct selector_key *key) {
     uint8_t *ptr;
     size_t count;
     ssize_t n;
-    bool error;
+    bool error = false;
     struct doh_response dr;
 
     ptr = buffer_write_ptr(&doh->buff, &count);
@@ -125,7 +126,13 @@ static void doh_read(struct selector_key *key) {
                 goto fail;
             }
 
-            save_results(&dr, doh->ar, &error);
+            if(dr.answerscounter == 0) {
+                doh->ar->status = 0x04; // host_unreachable
+            }
+            else {
+                save_results(&dr, doh->ar, &error);
+            }
+
             if(error) {
                 goto fail;
             }
@@ -188,7 +195,7 @@ static void free_doh_response(struct doh_response *dr) {
     for(size_t i = 0 ; i < dr->answerscounter ; i++) {
         free(dr->answers[i].rdata);
     }
-    free(dr->answers);
+    if(dr->answers != NULL) free(dr->answers);
 }
 
 

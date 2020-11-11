@@ -19,9 +19,15 @@
 
 #define DOH_ATTACH(key) ( (struct DoH *)(key)->data)
 
+typedef enum ip_type {
+    IPv4 = 0, IPv6, IP_CANT_TYPES // cant_types me devuelve la cantidad de tipos de ip que soporta DOH
+}ip_type;
+
 struct addr_resolv {
-    struct sockaddr_storage *origin_addr_res; //direcciones resueltas
-    size_t cant_addr;                         //cantidad de direcciones resueltas
+    struct sockaddr_storage *origin_addr_res; // direcciones resueltas
+    size_t cant_addr;                         // cantidad de direcciones resueltas
+    ip_type ip_type;                          // tipo de IP a resolver
+    size_t status;                            // status de la resolución
 };
 
 struct DoH {
@@ -33,7 +39,7 @@ struct DoH {
     int doh_fd;
     int client_fd;
 
-    //datos del servidor
+    //datos del servidor DoH
     char *host;
     char *ip;
     size_t port;
@@ -47,10 +53,6 @@ struct DoH {
     // respuesta de la consulta
     struct addr_resolv *ar;
 };
-
-typedef enum ip_type {
-    IPv4 = 0, IPv6,
-}ip_type;
 
 int create_doh_request(fd_selector s, char *fqdn, int client_fd, struct addr_resolv *ar);
 

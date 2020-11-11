@@ -288,14 +288,19 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
         case doh_dns_ancount:
 
             if(p->read < DNS_ANCOUNT){
-
-                p->answerscounter = p->answerscounter * 10 + b;
+                // ( p->answerscounter << 8 ) | b concateno los bytes que me llegan
+                p->answerscounter = (p->answerscounter << 8 ) | b;
                 p->read++;
             }
             if(p->read == DNS_ANCOUNT){
                 p->state = doh_dns_request_end;
                 p->read = 0;
-                p->answers = calloc(p->answerscounter, sizeof(*p->answers));
+                if(p->answerscounter > 0) {
+                    p->answers = calloc(p->answerscounter, sizeof(*p->answers));
+                }
+                else {
+                    p->state = doh_response_done;
+                }
             }
             if(p->aux_request_dns_length++ >= p->request_dns_length){
                 p->state = doh_error_request_lenght;
