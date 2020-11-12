@@ -272,18 +272,19 @@ static void print_response_status(resp_status status) {
 void menu(int fd) {
 
     char selected_opt[MAX_CRED_SIZE];
+    int select;
     while (!done)
     {
-        print_menu_options();
+    print_menu_options();
 
-        printf("Choose an option: ");
-        scanf(input, selected_opt);
+    printf("Choose an option: ");
+    scanf(input, selected_opt);
 
-        int select = atoi(selected_opt) - 1;
+    select = atoi(selected_opt) - 1;
 
-        if(select >= 0 && select < CANT_MENU_OPTIONS) {
-            menu_functions[select];
-        }
+    if(select >= 0 && select < CANT_MENU_OPTIONS) {
+        menu_functions[select](fd);
+    }
     }
 }
 
