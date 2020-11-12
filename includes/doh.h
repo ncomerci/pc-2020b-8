@@ -12,7 +12,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
-
+#include "args.h"
 
 #define IPV4_LEN 4
 #define IPV6_LEN 16

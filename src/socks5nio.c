@@ -264,24 +264,24 @@ static struct socks5 *socks5_new(int client_fd)
     return ret;
 }
 
-void write_handler(struct selector_key * key){
-    struct write *w = (struct write *)key->data;
+// void write_handler(struct selector_key * key){
+//     struct write *w = (struct write *)key->data;
     
-    size_t size;
-    buffer *b = &w->wb;
-    uint8_t *ptr = buffer_read_ptr(b, &size);
-    // n = send(key->fd,)
-    ssize_t n = write(1, ptr,size);
-    if(n > 0){
-        if(n < size){
-            buffer_read_adv(b,n);
-        }
-        else{
-            buffer_read_adv(b,size);
-            selector_set_interest_key(key, OP_NOOP);
-        }
-    }
-}
+//     size_t size;
+//     buffer *b = &w->wb;
+//     uint8_t *ptr = buffer_read_ptr(b, &size);
+//     // n = send(key->fd,)
+//     ssize_t n = write(1, ptr,size);
+//     if(n > 0){
+//         if(n < size){
+//             buffer_read_adv(b,n);
+//         }
+//         else{
+//             buffer_read_adv(b,size);
+//             selector_set_interest_key(key, OP_NOOP);
+//         }
+//     }
+// }
 
 /** handler del socket pasivo que atiende conexiones socks5 **/
 void socksv5_passive_accept(struct selector_key *key)
@@ -395,7 +395,6 @@ static unsigned hello_process(const struct hello_st *d)
     unsigned ret = HELLO_WRITE;
 
     uint8_t m = d->method;
-    // const uint8_t r = (m == METHOD_NO_ACCEPTABLE_METHODS) ? 0xFF : 0x00;
     if (-1 == hello_marshal(d->wb, m))
     {
         ret = ERROR;
@@ -934,6 +933,8 @@ static unsigned request_connecting(struct selector_key *key)
         if (error == 0)
         {
             data->client.request.status = status_succeeded;
+            set_historical_conections(get_historical_conections() +1);
+            set_concurrent_conections(get_concurrent_conections() + 1);
         }
         else {
             data->client.request.status = errno_to_socks(error);
@@ -993,6 +994,7 @@ static void socksv5_done(struct selector_key *key)
             close(fds[i]);
         }
     }
+    set_concurrent_conections(get_concurrent_conections() - 1);
 }
 
 static void socksv5_read(struct selector_key *key)
@@ -1194,6 +1196,8 @@ static unsigned copy_w(struct selector_key *key)
     }
     else
     {
+        set_total_bytes_transfered(get_total_bytes_transfered() + n);
+        // printf("bytes transfered: %ld\n",get_total_bytes_transfered());
         if(is_origin(key) && get_args_disectors_enabled()){
             pop3sniff(key,ptr,n);
         }
