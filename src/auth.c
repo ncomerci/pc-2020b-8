@@ -14,18 +14,21 @@ void auth_parser_init(struct auth_parser *p,enum auth_type type)
         p->state = auth_error;
         return;
     }
-    // switch (type)
-    // {
-    // case AUTH_SOCKS:
-    //     p->version = 0x01;
-    //     break;
-    // case AUTH_MNG:
-    //     p->version = 0x01;
-    // default:
-    //     // Tipo no soportado
-    //     p->state = auth_error;
-    //     break;
-    // }
+
+    // Hecho para mantener la escalabilidad en caso de cambios en la version del protocol
+    switch (type)
+    {
+    case AUTH_SOCKS:
+        p->version = 0x01;
+        break;
+    case AUTH_MNG:
+        p->version = 0x01;
+        break;
+    default:
+        // Tipo no soportado
+        p->state = auth_error;
+        break;
+    }
 
     p->remaining = 0;
     p->read = 0;
@@ -201,20 +204,12 @@ int auth_marshal(buffer *b, const uint8_t status, uint8_t version)
     {
         return -1;
     }
-    buff[0] = 0x01;
-    switch (status) //TODO: arreglar el tema del auth
-    {
-    case AUTH_SUCCESS:
-        buff[1] = 0x01;
-        break;
-    
-    default:
-        buff[1] = 0x03;
-        break;
-    }
+    buff[0] = version;
+    buff[1] = status;
+   
 
     buffer_write_adv(b, 2);
-    return 2; // ???????????????????
+    return 2; 
 }
 
 
