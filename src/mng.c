@@ -233,7 +233,12 @@ static void auth_init(const unsigned state, struct selector_key *key)
 }
 
 
-static uint8_t check_credentials(const struct auth_st *d){
+static uint8_t check_credentials(const struct auth_st *d) {
+
+    // ========== FOR TESTING ===============
+        return AUTH_SUCCESS;
+    // ======================================
+
     int nusers = get_args_nusers();
     struct users *users = get_args_users();
 

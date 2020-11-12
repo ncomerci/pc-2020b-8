@@ -6,7 +6,7 @@ HFILES=$(shell find $(HEADERS) -name '*.h' | sed 's/^.\///')
 FILES=$(shell find $(SRC) -name '*.c' | sed 's/^.\///')
 OFILES=$(patsubst %.c,./%.o,$(FILES))
 
-CFLAGS = -Wall -Wextra -pedantic -pedantic-errors -pthread \
+CFLAGS = -Wall -Wextra -pedantic -pedantic-errors \
 	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
 
 DEBUG_FLAGS = -Wall -Wextra -pedantic -pedantic-errors \
@@ -26,7 +26,10 @@ tests:
 debug: $(OFILES)
 	$(CC) $(OFILES) $(DEBUG_FLAGS) -o socks5d
 
+clnt:
+	cd client; make all;
+
 .PHONY: clean
 
 clean: 
-	rm -rf $(OFILES); cd test; make clean;
+	rm -rf $(OFILES); cd test; make clean; cd ../client; make clean;

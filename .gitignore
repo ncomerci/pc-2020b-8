@@ -49,8 +49,7 @@ Thumbs.db
 *.wmv
 
 # object files
-src/*.o
-test/*.o
+*.o
 
 #VSCode
 .vscode/

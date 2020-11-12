@@ -202,11 +202,19 @@ int auth_marshal(buffer *b, const uint8_t status, uint8_t version)
         return -1;
     }
     buff[0] = 0x01;
-    buff[1] = status;
-   
+    switch (status) //TODO: arreglar el tema del auth
+    {
+    case AUTH_SUCCESS:
+        buff[1] = 0x01;
+        break;
+    
+    default:
+        buff[1] = 0x03;
+        break;
+    }
 
     buffer_write_adv(b, 2);
-    return 2;
+    return 2; // ???????????????????
 }
 
 
