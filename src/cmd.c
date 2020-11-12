@@ -66,25 +66,23 @@ static enum cmd_state args(cmd_parser *p, uint8_t b){
     enum cmd_state ret = cmd_args;
     uint8_t curr = p->expected_args - p->remaining;
     if(p->arg_len - p->read == 0){
-        if(p->remaining == 0){
-            p->status = mng_status_succeeded;
-            ret = cmd_done;
-        }
-        else{
-            p->read = 0;
-            p->arg_len = b;
-            if(p->arg_len == 0){
-                p->status = mng_status_malformed_args;
-                ret = cmd_error_invalid_args;
-            }
-            p->remaining--;
-        }
+        p->read = 0;
+        p->arg_len = b;
+        if(p->arg_len == 0){
+            p->status = mng_status_malformed_args;
+            ret = cmd_error_invalid_args;
+        }   
         return ret;
     }
     if(p->read < (MAX_ARGS_SIZE -  1)){
         p->args[curr][p->read++] = b;
         if(p->arg_len - p->read == 0){
             p->args[curr][p->read] = 0;
+            p->remaining--;
+            if(p->remaining == 0){
+                p->status = mng_status_succeeded;
+                ret = cmd_done;
+            }
         }
     }
     else{
@@ -174,9 +172,10 @@ int cmd_marshall(buffer* b, const uint8_t status, uint8_t *resp, size_t nwrite){
         return -1;
     }
     ptr[0] = status;
+    buffer_write_adv(b,1);
     if(nwrite > 0){
         memcpy(ptr+1,resp,nwrite);
-        buffer_write_adv(b,nwrite + 1);
+        buffer_write_adv(b,nwrite);
         free(resp);
     }
     return nwrite;

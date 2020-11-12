@@ -264,18 +264,20 @@ static void auth_init(const unsigned state, struct selector_key *key)
 
 static uint8_t check_credentials(const struct auth_st *d){
     int nusers = get_args_nusers();
-    struct users *users = get_args_users();
+    // struct users *users = get_args_users();
 
     for(int i = 0; i < nusers; i++){
-        if((strcmp(users[i].name,(char*)d->usr->uname) == 0) && (strcmp(users[i].pass,(char*)d->pass->passwd) == 0)){
+        struct users user = get_args_user(i);
+        if((strcmp(user.name,(char*)d->usr->uname) == 0) && (strcmp(user.pass,(char*)d->pass->passwd) == 0)){
             return AUTH_SUCCESS;
         }
     }
-    return AUTH_FAIL;
+    return AUTH_BAD_CREDENTIALS;
 }
 
 static unsigned auth_process(struct auth_st *d){
     unsigned ret = AUTH_WRITE;
+    // mng_auth_state_to_reply();
     uint8_t status = check_credentials(d);
     if(auth_marshal(d->wb,status,d->parser.version) == -1){
         ret = ERROR;
@@ -304,8 +306,7 @@ static unsigned auth_read(struct selector_key *key){
             if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
             {
                 ret = auth_process(d);
-                // memcpy(&MNG_ATTACHMENT(key)->socks_info.user_info,&d->parser.usr,sizeof(d->parser.usr));
-                
+                // memcpy(&MNG_ATTACHMENT(key)->socks_info.user_info,&d->parser.usr,sizeof(d->parser.usr));  
             }
             else{
                 ret = ERROR;
@@ -375,7 +376,7 @@ static void cmd_init(const unsigned state, struct selector_key *key){
 static unsigned cmd_process(struct cmd_st *d){
     unsigned ret = CMD_WRITE;
     size_t nwrite = 0;
-    if(d->parser.cmd == 0x02){
+    if(d->parser.type == 0x02){
         ret = DONE;
     }
     else{
@@ -431,14 +432,6 @@ static unsigned cmd_read(struct selector_key *key){
     ssize_t n;
 
     ptr = buffer_write_ptr(buff,&count);
-    // struct msghdr msghdr;
-    // struct iovec iov[1];
-    // memset(&msghdr,0,sizeof(msghdr));
-    // iov[0].iov_base = ptr;
-    // iov[0].iov_len = count;
-    // msghdr.msg_iov = iov;
-    // msghdr.msg_iovlen = 1;
-    // n = recvmsg(key->fd,&msghdr,0);
     n = recv(key->fd,ptr,count,0);
     if (n > 0){
         buffer_write_adv(buff,n);
@@ -470,9 +463,6 @@ static unsigned cmd_write(struct selector_key *key){
     buffer *buff = d->wb;
     ptr = buffer_read_ptr(buff,&count);
     n = send(key->fd,ptr,count,MSG_NOSIGNAL);
-    // if(d->status != AUTH_SUCCESS){
-    //     ret = ERROR;
-    // }
     if (n > 0){
         buffer_read_adv(buff,n);
         if(!buffer_can_read(buff)){
@@ -488,14 +478,15 @@ static unsigned cmd_write(struct selector_key *key){
 }
 
 static size_t transfered_bytes(struct cmd_st *d){
-    size_t nwrite = 6;
+    size_t nwrite = 7;
     d->resp = malloc(nwrite * sizeof(uint8_t));
     uint64_t bytes = get_total_bytes_transfered();
     d->resp[0] = d->parser.cmd;
-    d->resp[1] = 0x04;
-    d->resp[2] = bytes >> 24;
-    for(int i = 3; i < 6;i++){
-        d->resp[i] = (bytes >> (8*(5-i))) & 255;
+    d->resp[1] = 0x01;
+    d->resp[2] = 0x04;
+    d->resp[3] = bytes >> 24;
+    for(int i = 4; i < 7;i++){
+        d->resp[i] = (bytes >> (8*(6-i))) & 255;
     }
     *d->status = mng_status_succeeded;
     return nwrite;
@@ -513,23 +504,27 @@ static size_t add_user(struct cmd_st * d){
 }
 
 static size_t historical_conexions(struct cmd_st *d){
-    size_t nwrite = 3;
+    size_t nwrite = 5;
     d->resp = malloc(nwrite * sizeof(uint8_t));
     uint64_t bytes = get_historical_conections();
-    d->resp[0] = 0x02;
-    d->resp[1] = bytes >> 8;
-    d->resp[2] = bytes & 255;
+    d->resp[0] = d->parser.cmd;
+    d->resp[1] = 0x01;
+    d->resp[2] = 0x02;
+    d->resp[3] = bytes >> 8;
+    d->resp[4] = bytes & 255;
     *d->status = mng_status_succeeded;
     return nwrite;
 }
 
 static size_t concurrent_conexions(struct cmd_st *d){
-    size_t nwrite = 3;
+    size_t nwrite = 5;
     d->resp = malloc(nwrite * sizeof(uint8_t));
     uint64_t bytes = get_concurrent_conections();
-    d->resp[0] = 0x02;
-    d->resp[1] = bytes >> 8;
-    d->resp[2] = bytes & 255;
+    d->resp[0] = d->parser.cmd;
+    d->resp[1] = 0x01;
+    d->resp[2] = 0x02;
+    d->resp[3] = bytes >> 8;
+    d->resp[4] = bytes & 255;
     *d->status = mng_status_succeeded;
     return nwrite;
 }
@@ -540,7 +535,7 @@ static size_t users(struct cmd_st *d){
     int size = 64;
     d->resp = malloc(size * sizeof(uint8_t));
     for(int i = 0; i < get_args_nusers(); i++){
-        char * user = get_args_users()[i].name;
+        char * user = get_args_user(i).name;
         d->resp[0] = strlen(user);
 
         // if()

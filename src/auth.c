@@ -53,7 +53,7 @@ enum auth_state auth_parser_feed(auth_parser *p, uint8_t b)
     switch (p->state)
     {
     case auth_version:
-        if (b == 0x01)
+        if (b == p->version)
         {
             p->state = auth_ulen;
         }

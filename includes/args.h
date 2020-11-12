@@ -8,9 +8,10 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #define MAX_USERS 10
-
+#define MAX_CRED_SIZE 255
 
 /**
 **  Estructura donde se guardan los argumentos de la linea de comando
@@ -19,8 +20,8 @@
 **/
 struct users
 {
-    char *name;
-    char *pass;
+    char name[MAX_CRED_SIZE];
+    char pass[MAX_CRED_SIZE];
 };
 
 struct doh
@@ -81,7 +82,7 @@ char * get_args_socks_addr();
 
 unsigned short get_args_socks_port();
 
-struct users* get_args_users();
+struct users get_args_user(int i);
 
 bool get_args_disectors_enabled();
 

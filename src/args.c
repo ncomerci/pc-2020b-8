@@ -30,8 +30,12 @@ user(char *s, struct users *user)
     {
         *p = 0;
         p++;
-        user->name = s;
-        user->pass = p;
+        strcpy(user->name,s);
+        // memcpy(user->name,s,strlen(s))
+        // user->name = s;
+        strcpy(user->pass,p);
+        // memcpy(user->)
+        // user->pass = p;
     }
 }
 
@@ -69,6 +73,10 @@ usage(const char *progname)
 }
 
 void free_args(){
+    // for(int i = 0; i < args->nusers; i++){
+    //     free(args->users->name);
+    //     free(args->users->pass);
+    // }
     free(args);
 }
 
@@ -102,8 +110,8 @@ int get_args_nusers(){
 void set_args_nusers(int new_val){
     args->nusers = new_val;
 }
-struct users* get_args_users(){
-    return args->users;
+struct users get_args_user(int i){
+    return args->users[i];
 }
 
 char * get_args_doh_ip(){
@@ -148,16 +156,30 @@ int add_new_user(char * user, char * pass){
     if (args->nusers >= MAX_USERS){
         return -1;
     }
-    struct users new_user = args->users[args->nusers++];
-    new_user.name = user;
-    new_user.pass = pass;
+    // args->users[args->nusers].name = malloc((strlen(user)+1) * sizeof(char));
+    // struct users user = args->users[args->nusers];
+    // args->users[args->nusers].pass = malloc((strlen(pass)+1) * sizeof(char));
+    // memcpy(args->users[args->nusers].name,user,strlen(user));
+    // memcpy(args->users[args->nusers].pass,pass,strlen(pass));
+    strcpy(args->users[args->nusers].name,user);
+    strcpy(args->users[args->nusers].pass,pass);
+    // args->users[args->nusers].name[strlen(user)] = '\0'; 
+    // args->users[args->nusers].pass[strlen(pass)] = '\0'; 
+    // args->users[args->nusers].name = user;
+    // args->users[args->nusers].pass = pass;
+    args->nusers += 1;
+    // struct users new_user = args->users[args->nusers++];
+    // new_user.name = user;
+    // new_user.pass = pass;
     return 1;
 }
 
 int change_user_pass(char *user, char *pass){
     for(int i = 0; i < args->nusers; i++){
         if(strcmp(user,args->users[i].name) == 0){
-            args->users[i].pass = pass;
+            // memcpy(args->user[i].pass,pass,strlen(aps))
+
+            // args->users[i].pass = pass;
             return 1;
         }
     }       
@@ -169,21 +191,21 @@ int change_user_pass(char *user, char *pass){
 ** move users to reacomodate array
 */
 static void delete_user(int i){
-    if(i == args->nusers - 1){
-        args->users[i].name = '\0';
-        args->users[i].pass = '\0';
-        return;
-    }
-    for(int j = i; j < args->nusers; j++){
-        if(j == MAX_USERS - 1){
-            args->users[j].name = '\0';
-            args->users[j].pass = '\0';
-        }
-        else
-        {
-            args->users[j] = args->users[j+1];
-        }
-    }
+    // if(i == args->nusers - 1){
+    //     args->users[i].name = '\0';
+    //     args->users[i].pass = '\0';
+    //     return;
+    // }
+    // for(int j = i; j < args->nusers; j++){
+    //     if(j == MAX_USERS - 1){
+    //         args->users[j].name = '\0';
+    //         args->users[j].pass = '\0';
+    //     }
+    //     else
+    //     {
+    //         args->users[j] = args->users[j+1];
+    //     }
+    // }
 }
 
 int rm_user(char * user){

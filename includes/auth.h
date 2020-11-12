@@ -12,7 +12,7 @@
 #define MAX_USR_PASS_SIZE 0XFF
 #define AUTH_FAIL 0x01
 #define AUTH_SUCCESS 0x00
-
+#define AUTH_BAD_CREDENTIALS 0x02
 /* Establece para que protocolo se va a usar el auth */
 enum auth_type{
     
