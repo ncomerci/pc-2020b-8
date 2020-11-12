@@ -38,7 +38,7 @@ struct mng_args
     struct user user;
 };
 
-static enum resp_status {success = 0x00, server_failure, cmd_unsupported, type_unsupported, arg_error, user_not_found, user_no_space};
+static enum resp_status {success = 0x00, server_failure, cmd_unsupported, type_unsupported, arg_error, user_not_found, user_no_space, TOTAL_RESPONSES};
 static char *resp_string[] = {"Success", "Server failure", "Command unsupported", "Type unsuppurted", "Argument error", "User not found", "Couldn't add user (lack of space)"};
 typedef enum resp_status resp_status;
 
@@ -70,6 +70,7 @@ static void usage(const char *progname);
 static void user(char *s, struct user *user);
 static void sigterm_handler(const int signal);
 static void input_init();
+static void exit_error();
 static unsigned short port(const char *s);
 static int send_getter_request(int fd, uint8_t cmd);
 static uint8_t **get_getter_result(int fd, resp_status *status, size_t *cant_args);
@@ -88,7 +89,10 @@ void parse_args(const int argc, char **argv,struct mng_args * args);
 void login(int fd, struct user *user);
 void menu(int fd);
 
-static void (*menu_functions[CANT_MENU_OPTIONS])(int fd) = {get_transfered_bytes, set_new_user};
+static void (*menu_functions[CANT_MENU_OPTIONS])(int fd) = { get_transfered_bytes, 
+            get_historical_connections, get_concurrent_connections, get_users_list, 
+            set_new_user, set_remove_user, set_change_pass, set_sniffer_handler,
+            set_doh_ip, set_doh_port, set_doh_host, set_doh_query };
 
 
 int main(const int argc, char **argv){
@@ -242,6 +246,11 @@ void login(int fd, struct user *user_info) {
     if(first_msg != NULL) free(first_msg);
 }
 
+static void exit_error() {
+    printf("An error has ocurred\n");
+    done = true;
+}
+
 static void print_menu_options() {
     system("clear"); //clear screen
     printf("01. (GET) transefered bytes\n02. (GET) historical connections\n03. (GET) concurrent connections\n04. (GET) users list\n\n05. (SET) add new users\n06. (SET) remove user\n07. (SET) change password to an user\n08. (SET) enable/disable password sniffer\n09. (SET) DOH IP\n10. (SET) DOH port\n11. (SET) DOH host\n12. (SET) DOH path\n13. (SET) DOH query\n\n");
@@ -256,7 +265,7 @@ static void leave_print() {
     }while(opt != '\n');
 }
 
-static void print_get_results(char * results[], size_t cant_results) {
+static void print_get_results(char *results[], size_t cant_results) {
     if(cant_results == 0) {
         printf("No results...\n\n");
     }
@@ -272,7 +281,12 @@ static void print_get_results(char * results[], size_t cant_results) {
 
 static void print_response_status(resp_status status) {
 
-    printf("Server response was: %s\n", resp_string[status]);
+    if(status >= 0 && status < TOTAL_RESPONSES) {
+        printf("Server response was: %s\n", resp_string[status]);
+    }
+    else {
+        printf("Unknown received status\n");
+    }
     leave_print();
 } 
 
@@ -308,7 +322,13 @@ static int send_getter_request(int fd, uint8_t cmd) {
     request[0] = 0x00;
     request[1] = cmd;
 
-    return send(fd, request, 2, 0);
+    int n = send(fd, request, 2, 0);
+
+    if(n <= 0) {
+        exit_error();
+    }
+
+    return n;
 }
 
 static uint8_t **get_getter_result(int fd, resp_status *status, size_t *cant_args) {
@@ -411,13 +431,13 @@ static int get_setter_result(int fd, resp_status *status) {
     return recv(fd, status, 1, 0);
 }
 
-static void get_transfered_bytes(int fd) {
-
-    send_getter_request(fd, 0x00);
+static uint8_t **send_and_recive_get_request(int fd, int cmd, size_t *cant_args) {
+    if(send_getter_request(fd, cmd) <= 0) {
+        return NULL;
+    }
 
     resp_status status;
-    size_t cant_args;
-    uint8_t **response = get_getter_result(fd, &status, &cant_args);
+    uint8_t **response = get_getter_result(fd, &status, cant_args);
 
     if(response == NULL) {
         if(status != success) {
@@ -426,14 +446,25 @@ static void get_transfered_bytes(int fd) {
         else {
             perror(strerror(errno));
         }
+    }
+
+    return response;
+}
+
+static void get_transfered_bytes(int fd) {
+
+    size_t cant_args;
+    uint8_t **response = send_and_recive_get_request(fd, 0x00, &cant_args);
+
+    if(response == NULL) {
         return;
     }
 
-    if(cant_args > 1) {
+    if(cant_args != 1) {
         goto final;
     }
 
-    unsigned long bytes = (response[0][3] << 24) | (response[0][2] << 16) | (response[0][1] <<8) | response[0][0];
+    unsigned long bytes = (response[0][3] << 24) | (response[0][2] << 16) | (response[0][1] << 8) | response[0][0];
 
     size_t bytes_num_len;
     if(bytes == 0) {
@@ -460,6 +491,67 @@ static void get_transfered_bytes(int fd) {
 
 final:
     free_args(response, cant_args);
+}
+
+static void get_connections(int fd, int cmd, char *msg_format) {
+
+    size_t cant_args;
+    uint8_t **response = send_and_recive_get_request(fd, cmd, &cant_args);
+
+    if(response == NULL) {
+        return;
+    }
+
+    if(cant_args != 1) {
+        goto final;
+    }
+
+    unsigned long num = (response[0][1] << 8) | response[0][0];
+
+    size_t num_len;
+    if(num == 0) {
+        num_len = 1;
+    } 
+    else {
+        num_len = floor(log10(num)) + 1;
+    }
+
+    char *result[1];
+    size_t msg_len = strlen(msg_format) - 3 + num_len;
+    result[0] = malloc(msg_len + 1);
+
+    if(result[0] == NULL) {
+        goto final;
+    }
+
+    snprintf(result[0], msg_len, msg_format, num);
+
+    print_get_results(result, cant_args);
+
+    free(result[0]);
+
+final:
+    free_args(response, cant_args);
+}
+
+static void get_historical_connections(int fd) {
+    get_connections(fd, 0x01, "Historical connections = %ul\n");
+}
+
+static void get_concurrent_connections(int fd) {
+    get_connections(fd, 0x02, "Concurrent connections = %ul\n");
+}
+
+static void get_users_list(int fd) {
+    size_t cant_args;
+    uint8_t **response = send_and_recive_get_request(fd, 3, &cant_args);
+
+    if(response == NULL) {
+        return;
+    }
+
+    printf("USUARIOS:\n");
+    print_get_results((char **) response, cant_args);
 }
 
 static void set_new_user(int fd) {
@@ -495,8 +587,44 @@ static void set_new_user(int fd) {
     if(val <= 0) {
         perror(strerror(errno));
     }
+
+    resp_status status;
+    val = get_setter_result(fd, &status);
+
+    if(val <= 0) {
+        perror(strerror(errno));
+    }
+
+    print_response_status(status);
 }
 
+static void set_remove_user(int fd) {
+
+}
+
+static void set_change_pass(int fd) {
+
+}
+
+static void set_sniffer_handler(int fd) {
+
+}
+
+static void set_doh_ip(int fd) {
+
+}
+
+static void set_doh_port(int fd) {
+
+}
+
+static void set_doh_host(int fd) {
+
+}
+
+static void set_doh_query(int fd) {
+
+}
 
 static unsigned short port(const char *s) {
     char *end = 0;
