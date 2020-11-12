@@ -7,9 +7,16 @@
 #include <errno.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define MAX_USERS 10
 
+
+/**
+**  Estructura donde se guardan los argumentos de la linea de comando
+**  y las variables que monitorean el uso del servidor y opciones de
+**  configuración del protocolo de configuración.
+**/
 struct users
 {
     char *name;
@@ -25,7 +32,7 @@ struct doh
     char *query;
 };
 
-struct socks5args
+struct socks5info
 {
     char *socks_addr;
     unsigned short socks_port;
@@ -33,17 +40,32 @@ struct socks5args
     char *mng_addr;
     unsigned short mng_port;
 
+    // Define si se habilita sniffing
     bool disectors_enabled;
 
+    // Almacena las variables de DoH
     struct doh doh;
+    
+    // Almacena los usuarios 
     struct users users[MAX_USERS];
+
+    // Almacena la cantidad de usuarios
     int nusers;
+
+    // Almacena todas las conexiones historicas de clientes
+    uint16_t historical_conections;   
+
+    // Almacena todas las conexiones de clientes concurrentes
+    uint16_t concurrent_conections;   
+
+    // Almacena todos los bytes transferidos, de cliente a origen y viceversa
+    uint32_t total_bytes_transfered;  
 };
 
 /**
  * Interpreta la linea de comandos (argc, argv) llenando
  * args con defaults o la seleccion humana. Puede cortar
- * la ejecuciÃ³n.
+ * la ejecución.
  */
 // void parse_args(const int argc, char **argv, struct socks5args *args);
 
@@ -52,9 +74,9 @@ void parse_args(const int argc, char **argv);
 
 void free_args();
 
-// struct socks5args* get_args();
 
-// getters and setters for args struct
+
+// getters and setters for info struct
 char * get_args_socks_addr();
 
 unsigned short get_args_socks_port();
@@ -62,6 +84,8 @@ unsigned short get_args_socks_port();
 struct users* get_args_users();
 
 bool get_args_disectors_enabled();
+
+void set_args_disectors_enabled(bool value);
 
 char * get_args_mng_addr();
 
@@ -89,4 +113,16 @@ void set_args_nusers(int new_val);
 int add_new_user(char * user, char * pass);
 
 int rm_user(char * user);
+
+int change_user_pass(char *user, char *pass);
+
+uint16_t get_historical_conections();
+void set_historical_conections(uint16_t amount);
+
+uint16_t get_concurrent_conections();
+void set_concurrent_conections(uint16_t amount);
+
+uint32_t get_total_bytes_transfered();
+void set_total_bytes_transfered(uint32_t amount);
+
 #endif

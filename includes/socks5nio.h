@@ -20,24 +20,15 @@
 #include "httpsniff.h"
 #include "doh.h"
 #include "pop3sniff.h"
-#include "main.h"
 #include "args.h"
 #define MAX_BUFF_SIZE 2048
 #define N(x) (sizeof(x)/sizeof((x)[0]))
-
-struct write{
-    uint8_t raw_buff[MAX_BUFF_SIZE];
-    buffer wb;
-    fd_selector selector;
-};
 
 /** handler del socket pasivo que atiende conexiones socks5 **/
 void socksv5_passive_accept(struct selector_key *key);
 
 /** libera pools internos **/
 void socksv5_pool_destroy(void);
-
-void write_handler(struct selector_key * key);
 
 
 #endif

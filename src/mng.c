@@ -3,16 +3,6 @@
 #define MNG_ATTACHMENT(key) ((struct mng*)key->data)
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 
-static void auth_init(const unsigned state, struct selector_key *key);
-static unsigned auth_read(struct selector_key *key);
-static unsigned auth_write(struct selector_key *key);
-static void auth_read_close(const unsigned state, struct selector_key *key);
-static void cmd_init(const unsigned state, struct selector_key *key);
-static unsigned cmd_read(struct selector_key *key);
-static unsigned cmd_write(struct selector_key *key);
-static void mng_write(struct selector_key *key);
-static void mng_read(struct selector_key *key);
-static void mng_close(struct selector_key *key);
 
 enum mng_state
 {
@@ -53,6 +43,54 @@ enum mng_state
 };
 
 
+struct auth_st{
+    buffer *rb, *wb;
+    auth_parser parser;
+    struct usr* usr;
+    struct pass* pass;
+    uint8_t status;
+};
+
+struct cmd_st{
+    buffer *rb, *wb;
+    cmd_parser parser;
+    enum cmd_reply_status *status;
+    uint8_t * resp;
+    uint8_t resp_len;
+};
+
+struct mng{
+    struct sockaddr_storage client_addr;
+    socklen_t client_addr_len;
+    int client_fd;
+
+    struct state_machine stm;
+
+    union{
+        struct auth_st auth;
+        struct cmd_st cmd;
+    }client;
+
+    // struct cmd_st cmd;
+    /** buffers para write y read **/
+    uint8_t raw_buff_a[MAX_BUFF_SIZE], raw_buff_b[MAX_BUFF_SIZE];
+    buffer read_buffer, write_buffer;
+};
+
+typedef size_t (*query_handler)(struct cmd_st *d);
+
+static void auth_init(const unsigned state, struct selector_key *key);
+static unsigned auth_read(struct selector_key *key);
+static unsigned auth_write(struct selector_key *key);
+static void auth_read_close(const unsigned state, struct selector_key *key);
+static void cmd_init(const unsigned state, struct selector_key *key);
+static unsigned cmd_read(struct selector_key *key);
+static unsigned cmd_write(struct selector_key *key);
+static void mng_write(struct selector_key *key);
+static void mng_read(struct selector_key *key);
+static void mng_close(struct selector_key *key);
+
+
 static const struct state_definition client_mngstates[] = {
 
     {
@@ -87,36 +125,27 @@ static const struct state_definition client_mngstates[] = {
     }
 };
 
-struct auth_st{
-    buffer *rb, *wb;
-    auth_parser parser;
-    struct usr* usr;
-    struct pass* pass;
-    uint8_t status;
-};
+static size_t transfered_bytes(struct cmd_st *d);
+static size_t add_user(struct cmd_st * d);
+static size_t historical_conexions(struct cmd_st *d);
+static size_t concurrent_conexions(struct cmd_st *d);
+static size_t transfered_bytes(struct cmd_st *d);
+static size_t historical_conexions(struct cmd_st *d);
+static size_t concurrent_conexions(struct cmd_st *d);
+static size_t users(struct cmd_st *d);
 
-struct cmd_st{
-    buffer *rb, *wb;
-    cmd_parser parser;
-};
+static size_t del_user(struct cmd_st *d);
+static size_t change_pass(struct cmd_st *d);
+static size_t set_pass_dissector(struct cmd_st *d);
+static size_t set_doh_port(struct cmd_st *d);
+static size_t set_doh_host(struct cmd_st *d);
+static size_t set_doh_path(struct cmd_st *d);
+static size_t set_doh_query(struct cmd_st *d);
 
-struct mng{
-    struct sockaddr_storage client_addr;
-    socklen_t client_addr_len;
-    int client_fd;
-
-    struct state_machine stm;
-
-    union{
-        struct auth_st auth;
-        struct cmd_st cmd;
-    }client;
-
-    struct cmd_st cmd;
-    /** buffers para write y read **/
-    uint8_t raw_buff_a[MAX_BUFF_SIZE], raw_buff_b[MAX_BUFF_SIZE];
-    buffer read_buffer, write_buffer;
-};
+query_handler handlers[] = {transfered_bytes,historical_conexions,
+                            concurrent_conexions,users,add_user,del_user,
+                            change_pass,set_pass_dissector,set_doh_port,
+                            set_doh_host,set_doh_path,set_doh_query};
 
 static struct mng* mng_new(int client_fd){
     struct mng *ret;
@@ -233,12 +262,7 @@ static void auth_init(const unsigned state, struct selector_key *key)
 }
 
 
-static uint8_t check_credentials(const struct auth_st *d) {
-
-    // ========== FOR TESTING ===============
-        return AUTH_SUCCESS;
-    // ======================================
-
+static uint8_t check_credentials(const struct auth_st *d){
     int nusers = get_args_nusers();
     struct users *users = get_args_users();
 
@@ -259,6 +283,7 @@ static unsigned auth_process(struct auth_st *d){
     d->status = status;
     return ret;
 }
+
 static unsigned auth_read(struct selector_key *key){
     unsigned ret = AUTH_READ;
     struct auth_st * d = &MNG_ATTACHMENT(key)->client.auth;
@@ -341,7 +366,60 @@ static void cmd_init(const unsigned state, struct selector_key *key){
     d->rb = &(MNG_ATTACHMENT(key)->read_buffer);
     d->wb = &(MNG_ATTACHMENT(key)->write_buffer);
     cmd_parser_init(&d->parser);
+    d->status = &d->parser.status;
+    d->resp = NULL;
+    d->resp_len = 0;
 }
+
+
+static unsigned cmd_process(struct cmd_st *d){
+    unsigned ret = CMD_WRITE;
+    size_t nwrite = 0;
+    if(d->parser.cmd == 0x02){
+        ret = DONE;
+    }
+    else{
+        nwrite = handlers[d->parser.cmd](d);
+    }
+    if(-1 == cmd_marshall(d->wb,*d->status,d->resp,nwrite)){
+        ret = ERROR;
+    }
+    return ret;
+    // switch (d->parser.cmd){
+    // case cmd_get_transfered:
+    //     transfered_bytes(d);
+    //     break;
+    // case cmd_get_historical:
+    //     break;
+    // case cmd_get_concurrent:
+    //     break;
+    // case cmd_get_users:
+    //     break;
+    // case cmd_set_add_user:
+    //     add_user(d);
+    //     break;
+    // case cmd_set_del_user:
+    //     break;
+    // case cmd_set_change_pass:
+    //     break;
+    // case cmd_set_pass_dissector:
+    //     break;
+    // case cmd_set_doh_ip:
+    //     break;
+    // case cmd_set_doh_port:
+    //     break;
+    // case cmd_set_doh_host:
+    //     break;
+    // case cmd_set_doh_path:
+    //     break;
+    // case cmd_set_doh_query:
+    //     break;
+    // default:
+    //     break;
+    // }
+
+}
+
 
 static unsigned cmd_read(struct selector_key *key){
     unsigned ret = CMD_READ;
@@ -361,29 +439,165 @@ static unsigned cmd_read(struct selector_key *key){
     // msghdr.msg_iov = iov;
     // msghdr.msg_iovlen = 1;
     // n = recvmsg(key->fd,&msghdr,0);
-    // n = recv(key->fd,ptr,count,0);
-    // if (n > 0){
-    //     buffer_write_adv(buff,n);
-    //     int st = cmd_consume(buff,&d->parser,&error);
-    //     if(auth_is_done(st,0)){
-    //         if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
-    //         {
-    //             ret = auth_process(d);
-    //             // memcpy(&MNG_ATTACHMENT(key)->socks_info.user_info,&d->parser.usr,sizeof(d->parser.usr));
-                
-    //         }
-    //         else{
-    //             ret = ERROR;
-    //         }
-    //     }
+    n = recv(key->fd,ptr,count,0);
+    if (n > 0){
+        buffer_write_adv(buff,n);
+        int st = cmd_consume(buff,&d->parser,&error);
+        if(cmd_is_done(st,0)){
+            if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
+            {
+                ret = cmd_process(d);
+                // memcpy(&MNG_ATTACHMENT(key)->socks_info.user_info,&d->parser.usr,sizeof(d->parser.usr));
+            }
+            else{
+                ret = ERROR;
+            }
+        }
 
-    // }
-    // else{
-    //     ret = ERROR;
-    // }
-    // return error ? ERROR : ret;
+    }
+    else{
+        ret = ERROR;
+    }
+    return error ? ERROR : ret;
 }
 
 static unsigned cmd_write(struct selector_key *key){
+    struct cmd_st * d = &MNG_ATTACHMENT(key)->client.cmd;
+    unsigned ret = CMD_WRITE;
+    uint8_t *ptr;
+    size_t count;
+    ssize_t n;
+    buffer *buff = d->wb;
+    ptr = buffer_read_ptr(buff,&count);
+    n = send(key->fd,ptr,count,MSG_NOSIGNAL);
+    // if(d->status != AUTH_SUCCESS){
+    //     ret = ERROR;
+    // }
+    if (n > 0){
+        buffer_read_adv(buff,n);
+        if(!buffer_can_read(buff)){
+            if(selector_set_interest_key(key,OP_READ) == SELECTOR_SUCCESS){
+                ret = CMD_READ;
+            }
+            else{
+                ret = ERROR;
+            }
+        }
+    }
+    return ret;
+}
 
+static size_t transfered_bytes(struct cmd_st *d){
+    size_t nwrite = 6;
+    d->resp = malloc(nwrite * sizeof(uint8_t));
+    uint64_t bytes = get_total_bytes_transfered();
+    d->resp[0] = d->parser.cmd;
+    d->resp[1] = 0x04;
+    d->resp[2] = bytes >> 24;
+    for(int i = 3; i < 6;i++){
+        d->resp[i] = (bytes >> (8*(5-i))) & 255;
+    }
+    *d->status = mng_status_succeeded;
+    return nwrite;
+
+}
+
+static size_t add_user(struct cmd_st * d){
+    char * user = (char*)d->parser.args[0];
+    char * pass = (char*)d->parser.args[1];
+    *d->status = mng_status_succeeded;
+    if (-1 == add_new_user(user,pass)){
+        *d->status = mng_status_max_users_reached;
+    }
+    return 0;
+}
+
+static size_t historical_conexions(struct cmd_st *d){
+    size_t nwrite = 3;
+    d->resp = malloc(nwrite * sizeof(uint8_t));
+    uint64_t bytes = get_historical_conections();
+    d->resp[0] = 0x02;
+    d->resp[1] = bytes >> 8;
+    d->resp[2] = bytes & 255;
+    *d->status = mng_status_succeeded;
+    return nwrite;
+}
+
+static size_t concurrent_conexions(struct cmd_st *d){
+    size_t nwrite = 3;
+    d->resp = malloc(nwrite * sizeof(uint8_t));
+    uint64_t bytes = get_concurrent_conections();
+    d->resp[0] = 0x02;
+    d->resp[1] = bytes >> 8;
+    d->resp[2] = bytes & 255;
+    *d->status = mng_status_succeeded;
+    return nwrite;
+}
+
+//Que pasa si strlen(users) > 255
+static size_t users(struct cmd_st *d){
+    size_t nwrite;
+    int size = 64;
+    d->resp = malloc(size * sizeof(uint8_t));
+    for(int i = 0; i < get_args_nusers(); i++){
+        char * user = get_args_users()[i].name;
+        d->resp[0] = strlen(user);
+
+        // if()
+    }
+    return nwrite;
+}
+
+static size_t del_user(struct cmd_st *d){
+    if(-1 == rm_user((char*)d->parser.args[0])){
+        *d->status = mng_status_nonexisting_user;
+    }
+    return 0;
+}
+
+static size_t change_pass(struct cmd_st *d){
+    char * user = (char*)d->parser.args[0];
+    char * pass = (char*)d->parser.args[1];
+    *d->status = mng_status_succeeded;
+    if (-1 == change_user_pass(user,pass)){
+        *d->status = mng_status_nonexisting_user;
+    }
+    return 0;
+}
+
+static size_t set_pass_dissector(struct cmd_st *d){
+    *d->status = mng_status_succeeded;
+    if(d->parser.args[0][0] == 0x00){
+        set_args_disectors_enabled(true);
+    }
+    else if(d->parser.args[0][0] == 0x01){
+        set_args_disectors_enabled(false);
+    }
+    else{
+        *d->status = mng_status_malformed_args;
+    }
+    return 0;
+}
+static size_t set_doh_port(struct cmd_st *d){
+    *d->status = mng_status_succeeded;
+    uint16_t ans =  d->parser.args[0][0];
+    ans = (ans << 8) + d->parser.args[0][1];
+    set_args_doh_port(ans);
+    printf("new port: %d",get_args_doh_port());
+    return 0;
+}
+static size_t set_doh_host(struct cmd_st *d){
+    *d->status = mng_status_succeeded;
+    set_args_doh_host((char*)d->parser.args[0]);
+    return 0;
+}
+static size_t set_doh_path(struct cmd_st *d){
+    *d->status = mng_status_succeeded;
+    set_args_doh_path((char*)d->parser.args[0]);
+    return 0;
+}
+static size_t set_doh_query(struct cmd_st *d){
+    *d->status = mng_status_succeeded;
+    set_args_doh_query((char*)d->parser.args[0]);
+    return 0;
 }

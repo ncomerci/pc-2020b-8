@@ -27,7 +27,9 @@
 #include "../includes/selector.h"
 #include "../includes/socks5nio.h"
 #include "../includes/args.h"
-#include "../includes/main.h"
+#include "../includes/stdoutwrite.h"
+#include "../includes/mng.h"
+
 #define MAX_PENDING_CONNECTIONS 20
 
 static bool done = false;
@@ -39,11 +41,6 @@ sigterm_handler(const int signal)
     done = true;
 }
 
-struct write *write_data = NULL;
-
-struct write* get_write_data(){
-    return write_data;
-}
 
 int main(const int argc, char **argv)
 {
@@ -238,25 +235,21 @@ int main(const int argc, char **argv)
         .handle_write = write_handler, // escribe en stdout los bytes que entran en el buffer
         .handle_close = NULL, // nada que liberar
     };
-    // struct write** aux = get_write();
-    // struct write* write = *aux;
-    write_data = malloc(sizeof(*write_data));
 
-    if(write_data == NULL){
+    if(-1 == init_write(selector)){
         err_msg = "Unable to allocate write struct";
         goto finally;
     }
-    write_data->selector = selector;
-    buffer_init(&write_data->wb, N(write_data->raw_buff), write_data->raw_buff);
-
-    ss = selector_register(selector, 1, &stdout_handler, OP_NOOP, write_data);
+    
+    //register selector for non blockng stdout
+    ss = selector_register(selector, 1, &stdout_handler, OP_NOOP, get_write_data());
 
     if (ss != SELECTOR_SUCCESS)
     {
         err_msg = "registering write fd";
         goto finally;
     }
-    //register selector for non blockng stdout
+    
 
     for (; !done;)
     {
@@ -290,14 +283,8 @@ finally:
         ret = 1;
     }
     // free write struct
-    if(write_data != NULL){
-        free(write_data);
-    }
-    
+    free_write();
     // free args struct
-    // if(args != NULL){
-    //     free(args);
-    // }
     free_args();
 
     if (selector != NULL)

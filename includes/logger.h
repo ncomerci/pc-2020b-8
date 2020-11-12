@@ -9,6 +9,7 @@
 #include "request.h"
 #include "hello.h"
 #include "auth.h"
+#include "../includes/stdoutwrite.h"
 #define DATE_SIZE 21
 
 enum protocol {
