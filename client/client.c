@@ -165,8 +165,8 @@ void parse_args(const int argc, char **argv,struct mng_args * args){
 void login(int fd, struct user *user_info) {
 
     enum login_responses {
-        UNSUPPORTED_VERSION = 0x00,
-        LOGIN_SUCCESFUL = 0x01,
+        LOGIN_SUCCESFUL = 0x00,
+        UNSUPPORTED_VERSION = 0x01,
         INCORRECT_USER_PASS = 0x02,
         SERVER_FAILURE = 0x03,
     };
