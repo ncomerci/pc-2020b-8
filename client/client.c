@@ -75,6 +75,13 @@ static int send_getter_request(int fd, uint8_t cmd);
 static uint8_t **get_getter_result(int fd, resp_status *status, size_t *cant_args);
 static void free_args(uint8_t **args, size_t cant_args);
 
+inline static void clear_buffer() {
+    char c;
+    do{
+        c = getchar();
+    }while (c != '\n' && c != EOF);
+}
+
 
 // ==================================================================
 void parse_args(const int argc, char **argv,struct mng_args * args);
@@ -361,8 +368,9 @@ static void free_args(uint8_t **args, size_t cant_args) {
 static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant_args) {
 
     uint8_t *setter = malloc(3 * sizeof(uint8_t));
-    int setter_len;
+    int setter_len = 3;
     int ret = 0;
+    int aux_len;
 
     if(setter == NULL) {
         return -1;
@@ -373,15 +381,15 @@ static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant
     setter[2] = cant_args;
 
     for(size_t i = 0; i < cant_args ; i++) {
-        const size_t arg_len = sizeof(args[i]);
+        const size_t arg_len = strlen((char *)args[i]);
 
         if(arg_len > 255) {
             ret = -1;
             goto final;
         }
 
-        setter_len = sizeof(setter)/sizeof(uint8_t);
-        setter = realloc(setter, setter_len + arg_len + 1);
+        aux_len = setter_len + arg_len + 1;
+        setter = realloc(setter, aux_len);
 
         if(setter == NULL) {
             return -1;
@@ -389,9 +397,9 @@ static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant
 
         setter[setter_len] = (uint8_t) arg_len;
         memcpy(setter + setter_len + 1, args[i], arg_len);
+        setter_len = aux_len;
     }
 
-    setter_len = sizeof(setter)/sizeof(uint8_t);
     ret = send(fd, setter, setter_len, 0);
 
 final:
@@ -469,8 +477,9 @@ static void set_new_user(int fd) {
     printf("\n\n Are you sure you want to add this user? [Y]es or [N]o\n");
     do
     {
-        scanf("%1s", &confirm);
-    } while (confirm != 'y' || confirm != 'Y' || confirm != 'n' || confirm != 'N');
+        clear_buffer();
+        confirm = getchar();
+    } while (confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
 
     if(confirm == 'n' || confirm == 'N') {
         return;
