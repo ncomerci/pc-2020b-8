@@ -609,9 +609,9 @@ static void perform_user_action(int fd, int cmd, char *title) {
     args[0] = (uint8_t *) user;
     args[1] = (uint8_t *) pass;
 
-    args[0] = {1, 0, 3, 1, 1, 3, 'a', 's', 'd', 3, '1', '2', '3'}; //test send
+    uint8_t demo[] = {1, 0, 3, 1, 1, 3, 'a', 's', 'd', 3, '1', '2', '3'}; //test send
 
-    send(fd, args[0], 13, 0);
+    send(fd, demo, 13, 0);
 
     // send_and_receive_setter_request(fd, cmd, args, 2);
 }
