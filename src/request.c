@@ -117,7 +117,7 @@ static enum request_state dest_port(request_parser *p, uint8_t b)
 
 enum request_state request_parser_feed(request_parser *p, uint8_t b)
 {
-    enum request_state next;
+    enum request_state next = request_error;
     switch (p->state)
     {
     case request_version:
@@ -142,12 +142,16 @@ enum request_state request_parser_feed(request_parser *p, uint8_t b)
         next = dest_port(p, b);
         break;
     case request_done:
+        next = request_done;
         break;
     case request_error_unsupported_version:
+        next = request_error_unsupported_version;
         break;
     case request_error_usupported_cmd:
+        next = request_error_usupported_cmd;
         break;
     case request_error_usupported_atyp:
+        next = request_error_usupported_atyp;
         break;
     default:
         fprintf(stderr, "unknown state %d\n", p->state);
@@ -211,6 +215,7 @@ int request_marshal(buffer *b, const enum socks_reply_status status, const enum 
     }
     if (n < len)
     {
+        free(aux);
         return -1;
     }
     buff[0] = 0x05;

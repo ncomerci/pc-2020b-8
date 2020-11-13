@@ -36,8 +36,6 @@ static void user(char *s){
             fprintf(stderr, "username or password too long, maximum length is 255 characters\n");
             exit(1);
         }
-        // memcpy(args->users[0].name,s,strlen(s)+1);
-        // memcpy(args->users[0].pass,p,strlen(p)+1);
         char * u = malloc(strlen(s) + 1);
         strcpy(u,s);
         char * ps = malloc(strlen(p) + 1);
@@ -47,17 +45,10 @@ static void user(char *s){
             khint_t ka = kh_get(admins,args->ha,u);
             if(ka ==kh_end(args->ha)) kh_value(args->hu,ku) = ps;   
         }
-        // khint_t ku = kh_put(users,args->hu,args->users[0].name,&absent);
-        // if(absent) {
-        //     khint_t ka = kh_get(admins,args->ha,s);
-        //     if(ka ==kh_end(args->ha)) kh_value(args->hu,ku) = args->users[0].pass;   
-        // }
-        // strcpy(user->name,s);
-        // memcpy(user->name,s,strlen(s))
-        // user->name = s;
-        // strcpy(user->pass,p);
-        // memcpy(user->)
-        // user->pass = p;
+        else {
+            free(u);    // TODO: revisar estos frees
+            free(ps);
+        }
     }
 }
 
@@ -304,6 +295,8 @@ int add_new_admin(char * user, char * pass){
         kh_value(args->ha,ka) = p;   
     }
     else{
+        free(u);    // TODO: Revisar estos frees
+        free(p);
         return -2; // Ya existe usuario/admin con ese nombre
     }
     args->nadmins ++;
@@ -328,6 +321,8 @@ int add_new_user(char * user, char * pass){
             kh_value(args->hu,ku) = p;   
     }
     else{
+        free(u);    // TODO: Revisar estos frees
+        free(p);
         return -2;
     }
     args->nusers++;

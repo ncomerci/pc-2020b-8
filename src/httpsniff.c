@@ -135,19 +135,22 @@ static enum httpsniff_state initial_parse(uint8_t *raw_buff, bool *parsing) {
 
 static void decoder(char * match, struct log_info *socks_info) {
 
-    char *encoded_str = strrchr(match, ' ');
-    encoded_str++;
+    if(match != NULL) 
+    {
+        char *encoded_str = strrchr(match, ' ');
+        encoded_str++;
 
-    int decoded_len = Base64decode_len(encoded_str);
+        int decoded_len = Base64decode_len(encoded_str);
 
-    char *decoded_str = malloc(decoded_len);
-    Base64decode(decoded_str, encoded_str);
+        char *decoded_str = malloc(decoded_len);
+        Base64decode(decoded_str, encoded_str);
 
-    const char* delim = ":";
-    socks_info->user = strtok(decoded_str, delim);
-    socks_info->passwd = strtok(NULL, delim);
-    socks_info->protocol = HTTP;
+        const char* delim = ":";
+        socks_info->user = strtok(decoded_str, delim);
+        socks_info->passwd = strtok(NULL, delim);
+        socks_info->protocol = HTTP;
 
-    log_sniff(socks_info);
-    free(decoded_str); // este free puede traer problemas con el log no bloqueante
+        log_sniff(socks_info);
+        free(decoded_str);
+    }
 }

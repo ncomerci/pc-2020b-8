@@ -117,6 +117,7 @@ static void doh_read(struct selector_key *key) {
     ssize_t n;
     bool error = false;
     struct doh_response dr;
+    memset(&dr, 0, sizeof(struct doh_response));
 
     ptr = buffer_write_ptr(&doh->buff, &count);
     n = recv(doh->doh_fd, ptr, count, 0);
@@ -433,6 +434,7 @@ int doh_request_marshal(struct DoH *doh, ip_type type) {
     size_t doh_request_length = strlen((char *)doh_request);
     if (n < doh_request_length)
     {
+        free(doh_request);
         return -1;
     }
     strcpy((char *)buff, (char *)doh_request);
