@@ -72,7 +72,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stderr, "Listening on ipv4 sock server TCP port %d\n", get_args_socks_port());
+    fprintf(stderr, "Listening on IPv4 socks5 server TCP port %d\n", get_args_socks_port());
 
     // man 7 ip. no importa reportar nada si falla.
     setsockopt(server4_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
@@ -114,7 +114,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stderr, "Listening on ipv6 sock server TCP port %d\n", get_args_socks_port());
+    fprintf(stderr, "Listening on IPv6 socks5 server TCP port %d\n", get_args_socks_port());
     setsockopt(server6_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
     if (setsockopt(server6_fd, SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int)) < 0 ) {
