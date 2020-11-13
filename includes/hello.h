@@ -6,6 +6,43 @@
 #include <stdlib.h>
 #include "buffer.h"
 
+//    The client connects to the server, and sends a version
+//    identifier/method selection message:
+
+//                    +----+----------+----------+
+//                    |VER | NMETHODS | METHODS  |
+//                    +----+----------+----------+
+//                    | 1  |    1     | 1 to 255 |
+//                    +----+----------+----------+
+
+//    The VER field is set to X'05' for this version of the protocol.  The
+//    NMETHODS field contains the number of method identifier octets that
+//    appear in the METHODS field.
+
+//    The server selects from one of the methods given in METHODS, and
+//    sends a METHOD selection message:
+
+//                          +----+--------+
+//                          |VER | METHOD |
+//                          +----+--------+
+//                          | 1  |   1    |
+//                          +----+--------+
+
+//    If the selected METHOD is X'FF', none of the methods listed by the
+//    client are acceptable, and the client MUST close the connection.
+
+//    The values currently defined for METHOD are:
+
+//           o  X'00' NO AUTHENTICATION REQUIRED
+//           o  X'01' GSSAPI
+//           o  X'02' USERNAME/PASSWORD
+//           o  X'03' to X'7F' IANA ASSIGNED
+//           o  X'80' to X'FE' RESERVED FOR PRIVATE METHODS
+//           o  X'FF' NO ACCEPTABLE METHODS
+
+//    The client and server then enter a method-specific sub-negotiation.
+
+
 static const uint8_t METHOD_NO_AUTHENTICATION_REQUIRED = 0x00;
 static const uint8_t METHOD_NO_ACCEPTABLE_METHODS = 0xFF;
 static const uint8_t METHOD_USERNAME_PASSWORD = 0x02;

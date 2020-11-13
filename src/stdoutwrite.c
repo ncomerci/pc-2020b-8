@@ -14,6 +14,7 @@ int init_write(fd_selector selector){
     }
     write_data->selector = selector;
     buffer_init(&write_data->wb, N(write_data->raw_buff), write_data->raw_buff);
+    return 1;
 }
 
 void free_write(){
@@ -32,7 +33,7 @@ void write_handler(struct selector_key * key){
     // n = send(key->fd,)
     ssize_t n = write(1, ptr,size);
     if(n > 0){
-        if(n < size){
+        if((unsigned)n < size){
             buffer_read_adv(b,n);
         }
         else{
