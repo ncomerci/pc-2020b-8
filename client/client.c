@@ -137,7 +137,7 @@ void parse_args(const int argc, char **argv,struct mng_args * args){
     while (true)
     {
 
-        c = getopt(argc, argv, "hL:P:u:v");
+        c = getopt(argc, argv, "hL:P:a:v");
         if (c == -1)
             break;
 
@@ -153,7 +153,7 @@ void parse_args(const int argc, char **argv,struct mng_args * args){
         case 'P':
             args->mng_port = port(optarg);
             break;
-        case 'u':
+        case 'a':
             user(optarg, &args->user);
             break;
         case 'v':
