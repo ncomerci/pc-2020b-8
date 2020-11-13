@@ -58,17 +58,11 @@ int main(const int argc, char **argv)
     fd_selector selector = NULL;
 
 
-    if (selector_fd_set_nio(fileno(stdout)) == -1)
-    {
-        err_msg = "Non blocking stdout error";
-        goto finally;
-    }
-
     ///////////////////////////////////////////////////////////// IPv4
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    inet_pton(AF_INET,get_args_socks_addr(),&addr.sin_addr);
+    inet_pton(AF_INET,get_args_socks_addr4(),&addr.sin_addr);
     addr.sin_port = htons(get_args_socks_port());
 
     const int server4_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -110,7 +104,7 @@ int main(const int argc, char **argv)
     struct sockaddr_in6 addr6;
     memset(&addr6, 0, sizeof(addr6));
     addr6.sin6_family = AF_INET6;
-    addr6.sin6_addr = in6addr_any;
+    inet_pton(AF_INET6,get_args_socks_addr6(),&addr6.sin6_addr);
     addr6.sin6_port = htons(get_args_socks_port());
     
     const int server6_fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
@@ -121,7 +115,6 @@ int main(const int argc, char **argv)
     }
 
     fprintf(stdout, "Listening on ipv6 TCP port %d\n", get_args_socks_port());
-    // fprintf(stdout, "Listening on ipv6 fd %d\n", server6_fd);
     setsockopt(server6_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
     if (setsockopt(server6_fd, SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int)) < 0 ) {
@@ -147,15 +140,15 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    // create SCTP socket for configuration
+    ////////////////////////////IPv4 SCTP socket for configuration
     int mng_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
 
     struct sockaddr_in mng_addr;
     mng_addr.sin_family = AF_INET;
-    inet_pton(AF_INET,get_args_mng_addr(),&mng_addr.sin_addr);
+    inet_pton(AF_INET,get_args_mng_addr4(),&mng_addr.sin_addr);
     mng_addr.sin_port = htons(get_args_mng_port());
 
-    // fprintf(stdout, "Listening on configuration SCTP port %d\n", args->socks_port);
+    fprintf(stdout, "Listening on IPv4 configuration SCTP port %d\n", get_args_mng_port());
     setsockopt(mng_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
     
     if (bind(mng_fd, (struct sockaddr *)&mng_addr, sizeof(mng_addr)) < 0)
@@ -176,6 +169,42 @@ int main(const int argc, char **argv)
         err_msg = "setting server configuration socket as non-blocking";
         goto finally;
     }
+
+    ////////////////////////////IPv6 SCTP socket for configuration
+    // int mng_fd6 = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
+
+    // struct sockaddr_in6 mng_addr6;
+    // memset(&mng_addr6, 0, sizeof(mng_addr6));
+    // mng_addr6.sin6_family = AF_INET6;
+    // inet_pton(AF_INET6,get_args_mng_addr6(),&mng_addr6.sin6_addr);
+    // mng_addr6.sin6_port = htons(get_args_socks_port());
+
+    // fprintf(stdout, "Listening on IPv6 configuration SCTP port %d\n", get_args_mng_port());
+    // setsockopt(mng_fd6, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+    
+    // if (setsockopt(mng_fd6, SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int)) < 0 ) {
+    //     err_msg = "setsockopt(IPV6_V6ONLY) failed";
+    //     goto finally;
+    // }  
+
+    // if (bind(mng_fd6, (struct sockaddr *)&mng_addr6, sizeof(mng_addr6)) < 0)
+    // {
+    //     err_msg = "unable to bind configuration socket";
+    //     goto finally;
+    // }
+    
+    // //TODO: change MAX PENDING CONNECTIONS
+    // if (listen(mng_fd6, MAX_PENDING_CONNECTIONS) < 0)
+    // {
+    //     err_msg = "unable to listen on configuration socket";
+    //     goto finally;
+    // }
+
+    // if (selector_fd_set_nio(mng_fd6) == -1)
+    // {
+    //     err_msg = "setting ipv6 server configuration socket as non-blocking";
+    //     goto finally;
+    // }
 
     const struct selector_init conf = {
         .signal = SIGALRM,
@@ -226,9 +255,21 @@ int main(const int argc, char **argv)
         .handle_close = NULL, // nada que liberar
     };
 
-    //registering configuration passive socket
+    //registering ipv4 configuration passive socket
     ss = selector_register(selector, mng_fd, &mng_handler, OP_READ, NULL);
+    if (ss != SELECTOR_SUCCESS)
+    {
+        err_msg = "registering ipv4 mng fd";
+        goto finally;
+    }
 
+    //registering ipv6 configuration passive socket
+    // ss = selector_register(selector, mng_fd6, &mng_handler, OP_READ, NULL);
+    // if (ss != SELECTOR_SUCCESS)
+    // {
+    //     err_msg = "registering ipv6 mng fd";
+    //     goto finally;
+    // }
 
     const struct fd_handler stdout_handler = {
         .handle_read = NULL,
@@ -241,6 +282,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
     
+    // Setting STDOUT has non blocking
     if (selector_fd_set_nio(1) == -1)
     {
         err_msg = "setting stdout as non-blocking";

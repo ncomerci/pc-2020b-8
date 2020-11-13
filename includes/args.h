@@ -10,12 +10,12 @@
 #include <stdint.h>
 #include <string.h>
 #include "khash.h"
+#include <arpa/inet.h>
 
-#define MAX_USERS 10
+#define MAX_USERS 3
 #define MAX_CRED_SIZE 255
 #define MAX_IP_SIZE 16
-// KHASH_SET_INIT_STR(admins)
-// KHASH_SET_INIT_STR(users)
+
 KHASH_MAP_INIT_STR(admins, char*)
 KHASH_MAP_INIT_STR(users, char*)
 /**
@@ -40,10 +40,12 @@ struct doh
 
 struct socks5info
 {
-    char *socks_addr;
+    char *socks_addr4;
+    char *socks_addr6;
     unsigned short socks_port;
 
-    char *mng_addr;
+    char *mng_addr4;
+    char *mng_addr6;
     unsigned short mng_port;
 
     // Define si se habilita sniffing
@@ -52,18 +54,14 @@ struct socks5info
     // Almacena las variables de DoH
     struct doh doh;
 
+    // Almacena los users
     khash_t(users) *hu;
-
-    // Almacena los usuarios 
-    struct users users[MAX_USERS];
 
     // Almacena la cantidad de usuarios
     int nusers;
 
-    khash_t(admins) *ha;
-
     // Almacena los admins
-    struct users admins[MAX_USERS];
+    khash_t(admins) *ha;
 
     // Almacena la cantidad de admins
     int nadmins;
@@ -90,25 +88,30 @@ void parse_args(const int argc, char **argv);
 
 void free_args();
 
-int check_admin_credentials(char * user, char * pass);
-int registed(char * user, char * pass);
+
 // getters and setters for info struct
-char * get_args_socks_addr();
+
+// ************ SOCKS ************ 
+
+char * get_args_socks_addr4();
+
+char * get_args_socks_addr6();
 
 unsigned short get_args_socks_port();
-
-
-
-char * get_all_users();
 
 bool get_args_disectors_enabled();
 
 void set_args_disectors_enabled(bool value);
 
-char * get_args_mng_addr();
+// ************ MNG ************ 
+
+char * get_args_mng_addr4();
+
+char * get_args_mng_addr6();
 
 unsigned short get_args_mng_port();
 
+// ************ DOH ************ 
 char * get_args_doh_ip();
 void set_args_doh_ip(char * new_ip);
 
@@ -123,6 +126,9 @@ void set_args_doh_path(char * new_path);
 
 char *get_args_doh_query();
 void set_args_doh_query(char * new_query);
+
+
+// ************ USERS/ADMINS ************ 
 
 int get_args_nusers();
 
@@ -139,6 +145,14 @@ int add_new_user(char * user, char * pass);
 int delete_registered(char * user);
 
 int change_user_pass(char *user, char *pass);
+
+int check_admin_credentials(char * user, char * pass);
+
+int registed(char * user, char * pass);
+
+char * get_all_users();
+
+// ************ MONITORING ************ 
 
 uint16_t get_historical_conections();
 void set_historical_conections(uint16_t amount);
