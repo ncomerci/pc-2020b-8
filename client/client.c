@@ -256,7 +256,7 @@ static void exit_error() {
 
 static void print_menu_options() {
     system("clear"); //clear screen
-    printf("01. (GET) transefered bytes\n02. (GET) historical connections\n03. (GET) concurrent connections\n04. (GET) users list\n\n05. (SET) add new users\n06. (SET) remove user\n07. (SET) change password to an user\n08. (SET) enable/disable password sniffer\n09. (SET) DOH IP\n10. (SET) DOH port\n11. (SET) DOH host\n12. (SET) DOH path\n13. (SET) DOH query\n14. QUIT\n\n");
+    printf("01. (GET) transfered bytes\n02. (GET) historical connections\n03. (GET) concurrent connections\n04. (GET) users list\n\n05. (SET) add new users\n06. (SET) remove user\n07. (SET) change password to an user\n08. (SET) enable/disable password sniffer\n09. (SET) DOH IP\n10. (SET) DOH port\n11. (SET) DOH host\n12. (SET) DOH path\n13. (SET) DOH query\n14. QUIT\n\n");
     
 }
 
