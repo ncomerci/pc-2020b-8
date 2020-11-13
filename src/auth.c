@@ -213,10 +213,10 @@ int auth_marshal(buffer *b, const uint8_t status, uint8_t version)
 }
 
 
-void auth_parser_close(struct auth_parser *p){
+// void auth_parser_close(struct auth_parser *p){
     // free(p->usr);
     // free(p->pass);
-}
+// }
 
 
 

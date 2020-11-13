@@ -150,7 +150,7 @@ static unsigned hello_write(struct selector_key *key);
 static void auth_init(struct selector_key *key);
 static unsigned auth_read(struct selector_key *key);
 static unsigned auth_write(struct selector_key *key);
-static void auth_read_close(struct selector_key *key);
+// static void auth_read_close(struct selector_key *key);
 static void request_init(struct selector_key *key);
 // static void request_read_close(const unsigned state, struct selector_key *key);
 static unsigned request_read(struct selector_key *key);
@@ -176,7 +176,7 @@ static const struct state_definition client_statbl[] = {
     {
         .state              = AUTH_READ,
         .on_arrival         = auth_init,
-        .on_departure       = auth_read_close,
+        // .on_departure       = auth_read_close,
         .on_read_ready      = auth_read,
     }, {
         .state              = AUTH_WRITE,
@@ -547,10 +547,10 @@ static unsigned auth_write(struct selector_key *key){
     return ret;
 }
 
-static void auth_read_close(struct selector_key *key){
-    struct auth_st *d = &ATTACHMENT(key)->client.auth;
-    auth_parser_close(&d->parser);
-}
+// static void auth_read_close(struct selector_key *key){
+//     struct auth_st *d = &ATTACHMENT(key)->client.auth;
+//     auth_parser_close(&d->parser);
+// }
 
 ////////////////////////////////////////////////////////////////////////
 // REQUEST

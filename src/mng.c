@@ -82,7 +82,7 @@ typedef int (*query_handler)(struct cmd_st *d);
 static void auth_init(struct selector_key *key);
 static unsigned auth_read(struct selector_key *key);
 static unsigned auth_write(struct selector_key *key);
-static void auth_read_close(struct selector_key *key);
+// static void auth_read_close(struct selector_key *key);
 static void cmd_init(struct selector_key *key);
 static unsigned cmd_read(struct selector_key *key);
 static unsigned cmd_write(struct selector_key *key);
@@ -96,7 +96,7 @@ static const struct state_definition client_mngstates[] = {
     {
         .state = AUTH_READ,
         .on_arrival = auth_init,
-        .on_departure = auth_read_close,
+        // .on_departure = auth_read_close,
         .on_read_ready = auth_read,
     },
 
@@ -356,10 +356,11 @@ static unsigned auth_write(struct selector_key *key){
     return ret;
 }
 
-static void auth_read_close(struct selector_key *key){
-    struct auth_st *d = &MNG_ATTACHMENT(key)->client.auth;
-    auth_parser_close(&d->parser);
-}
+// static void auth_read_close(struct selector_key *key){
+//     struct auth_st *d = &MNG_ATTACHMENT(key)->client.auth;
+//     auth_parser_close(&d->parser);
+// }
+
 ////////////////////////////////////////////////////////////////////////
 // CMD
 ////////////////////////////////////////////////////////////////////////
