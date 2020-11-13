@@ -79,11 +79,11 @@ struct mng{
 
 typedef size_t (*query_handler)(struct cmd_st *d);
 
-static void auth_init(const unsigned state, struct selector_key *key);
+static void auth_init(struct selector_key *key);
 static unsigned auth_read(struct selector_key *key);
 static unsigned auth_write(struct selector_key *key);
-static void auth_read_close(const unsigned state, struct selector_key *key);
-static void cmd_init(const unsigned state, struct selector_key *key);
+static void auth_read_close(struct selector_key *key);
+static void cmd_init(struct selector_key *key);
 static unsigned cmd_read(struct selector_key *key);
 static unsigned cmd_write(struct selector_key *key);
 static void mng_write(struct selector_key *key);
@@ -252,7 +252,7 @@ fail:
 ////////////////////////////////////////////////////////////////////////
 
 // inicializa las variables de los estados AUTH...
-static void auth_init(const unsigned state, struct selector_key *key)
+static void auth_init(struct selector_key *key)
 {
     struct auth_st *d = &MNG_ATTACHMENT(key)->client.auth;
     d->rb = &(MNG_ATTACHMENT(key)->read_buffer);
@@ -356,7 +356,7 @@ static unsigned auth_write(struct selector_key *key){
     return ret;
 }
 
-static void auth_read_close(const unsigned state, struct selector_key *key){
+static void auth_read_close(struct selector_key *key){
     struct auth_st *d = &MNG_ATTACHMENT(key)->client.auth;
     auth_parser_close(&d->parser);
 }
@@ -364,7 +364,7 @@ static void auth_read_close(const unsigned state, struct selector_key *key){
 // CMD
 ////////////////////////////////////////////////////////////////////////
 
-static void cmd_init(const unsigned state, struct selector_key *key){
+static void cmd_init(struct selector_key *key){
     struct cmd_st *d = &MNG_ATTACHMENT(key)->client.cmd;
     d->rb = &(MNG_ATTACHMENT(key)->read_buffer);
     d->wb = &(MNG_ATTACHMENT(key)->write_buffer);

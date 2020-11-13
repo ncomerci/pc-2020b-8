@@ -49,7 +49,7 @@ selector_error(const selector_status status)
 }
 
 static void
-wake_handler(const int signal)
+wake_handler(__attribute__((unused)) const int signal)
 {
     // nada que hacer. está solo para interrumpir el select
 }

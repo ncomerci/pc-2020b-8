@@ -221,7 +221,6 @@ void set_args_doh_query(char * new_query){
 
 
 int check_admin_credentials(char * user, char * pass){
-    int absent;
     khint_t ka = kh_get(admins,args->ha,user);
     
     if(ka != kh_end(args->ha)){
@@ -232,7 +231,6 @@ int check_admin_credentials(char * user, char * pass){
 }
 
 static int check_user_credentials(char * user, char * pass){
-    int absent;
     khint_t ku = kh_get(users,args->hu,user);
     
     if(ku != kh_end(args->hu)){
@@ -335,13 +333,11 @@ int add_new_user(char * user, char * pass){
 
 
 static int admin_exists(char * user){
-    int absent;
     khint_t ka = kh_get(admins,args->ha,user);
     return ka != kh_end(args->ha) ? 1:0;
 }
 
 static int user_exists(char * user){
-    int absent;
     khint_t ku = kh_get(users,args->hu,user);
 
     return ku != kh_end(args->hu) ? 1:0;

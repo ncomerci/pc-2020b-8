@@ -95,7 +95,7 @@ enum request_state request_consume(buffer *b, request_parser *p, bool *error);
 
 bool request_is_done(const enum request_state state, bool *error);
 
-void request_close(request_parser *p);
+// void request_close(request_parser *p);
 
 /** ensambla la respuesta del request dentro del buffer con el metodo 
  * seleccionado.

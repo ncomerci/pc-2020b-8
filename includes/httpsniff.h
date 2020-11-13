@@ -14,8 +14,8 @@
 #define MAX_SIZE 8192 // aprox max header size
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 
-static const char *http = "HTTP";
-static const char *auth_exp = "Authorization: Basic [A-Za-z0-9+/]+={0,2}";
+__attribute__((unused)) static const char *http = "HTTP";
+__attribute__((unused)) static const char *auth_exp = "Authorization: Basic [A-Za-z0-9+/]+={0,2}";
 
 enum httpsniff_state
 {

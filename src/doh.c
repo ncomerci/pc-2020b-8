@@ -13,7 +13,7 @@
 
 #define ipv4_to_long(x) ((x[3]<<24) | (x[2]<<16)| (x[1]<<8) | x[0])
 
-static char *host = "localhost\r\n";
+// static char *host = "localhost\r\n";
 // static char *ip = "127.0.0.1";
 // static char *path = "/dns-query"; //TODO: cambiar a getnsrecord antes de entregar
 // static char *query = "?dns=";

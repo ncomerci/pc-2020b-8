@@ -9,7 +9,7 @@
 #include "request.h"
 #include "hello.h"
 #include "auth.h"
-#include "../includes/stdoutwrite.h"
+#include "stdoutwrite.h"
 #define DATE_SIZE 21
 
 enum protocol {
@@ -17,9 +17,9 @@ enum protocol {
     POP3,
 };
 
-static const char *protocol_str[] = {"HTTP", "POP3"};
+__attribute__((unused)) static const char *protocol_str[] = {"HTTP", "POP3"};
 
-struct log_info{
+struct log_info {
     uint8_t method;
     struct usr user_info;
     enum socks_reply_status status;

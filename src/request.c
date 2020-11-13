@@ -11,7 +11,7 @@ static int remaining_is_done(request_parser *p)
     return p->read >= p->remaining;
 }
 
-static enum request_state version(request_parser *p, uint8_t b)
+static enum request_state version(uint8_t b)
 {
     enum request_state next;
     if (b == 0x05)
@@ -121,7 +121,7 @@ enum request_state request_parser_feed(request_parser *p, uint8_t b)
     switch (p->state)
     {
     case request_version:
-        next = version(p, b);
+        next = version(b);
         break;
     case request_cmd:
         next = cmd(p, b);
@@ -298,7 +298,7 @@ enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **o
         request->dest_addr.ipv4.sin_family = hp->h_addrtype;
         memcpy((char *)&request->dest_addr.ipv4.sin_addr, *hp->h_addr_list, hp->h_length);
     }
-    // no break
+    // fall through
     case ipv4_type:
     {
         *domain = AF_INET;
@@ -325,7 +325,7 @@ enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **o
     return ret;
 }
 
-void request_close(request_parser *p)
-{
-    // nada que hacer
-}
+// void request_close(request_parser *p)
+// {
+//     // nada que hacer
+// }
