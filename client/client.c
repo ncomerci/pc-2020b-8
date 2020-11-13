@@ -775,7 +775,52 @@ static bool doh_ip_validator(char * ip, uint8_t * result, uint8_t * size) {
 } 
 
 static void set_doh_ip(int fd) {
-    doh_functions(fd, 0x04, "\nInsert new IP address: ", doh_ip_validator);
+    char user_input[MAX_CRED_SIZE];
+    char confirm = 0;
+
+        printf("\nInsert new IP address: ");
+        scanf(input, user_input);
+    do{
+        printf("\nAre you sure you want to perform this action? [Y]es or [N]o\n");
+        clear_buffer();
+        confirm = getchar();
+    }
+    while(confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
+
+    if(confirm == 'n' || confirm == 'N') {
+        return;
+    }
+
+    uint8_t *args[2];
+    size_t arg_len[2];
+    uint8_t ip_type[1];
+
+    uint8_t size = 0;
+
+    if(!doh_ip_validator(user_input, (uint8_t *) user_input, &size)) {
+        printf("Invalid input\n");
+        leave_print();
+        return;
+    }
+
+    if(size == 4) {
+        ip_type[0] = 0x00;
+    }
+    else if(size == 16) {
+        ip_type[0] = 0x01;
+    }
+    else {
+        exit_error();
+        return;
+    }
+
+    arg_len[0] = 1;
+    arg_len[1] = size;
+
+    args[0] = ip_type;
+    args[1] = (uint8_t *) user_input;
+    send_and_receive_setter_request(fd, 0x04, args, 2, arg_len);
+
 }
 
 static bool doh_port_validator(char *port, uint8_t * result, uint8_t * size) {
