@@ -72,7 +72,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stdout, "Listening on ipv4 TCP port %d\n", get_args_socks_port());
+    fprintf(stderr, "Listening on ipv4 sock server TCP port %d\n", get_args_socks_port());
 
     // man 7 ip. no importa reportar nada si falla.
     setsockopt(server4_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
@@ -114,7 +114,7 @@ int main(const int argc, char **argv)
         goto finally;
     }
 
-    fprintf(stdout, "Listening on ipv6 TCP port %d\n", get_args_socks_port());
+    fprintf(stderr, "Listening on ipv6 sock server TCP port %d\n", get_args_socks_port());
     setsockopt(server6_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
 
     if (setsockopt(server6_fd, SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int)) < 0 ) {
@@ -148,7 +148,7 @@ int main(const int argc, char **argv)
     inet_pton(AF_INET,get_args_mng_addr4(),&mng_addr.sin_addr);
     mng_addr.sin_port = htons(get_args_mng_port());
 
-    fprintf(stdout, "Listening on IPv4 configuration SCTP port %d\n", get_args_mng_port());
+    fprintf(stderr, "Listening on IPv4 configuration SCTP port %d\n", get_args_mng_port());
     setsockopt(mng_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
     
     if (bind(mng_fd, (struct sockaddr *)&mng_addr, sizeof(mng_addr)) < 0)
@@ -179,7 +179,7 @@ int main(const int argc, char **argv)
     // inet_pton(AF_INET6,get_args_mng_addr6(),&mng_addr6.sin6_addr);
     // mng_addr6.sin6_port = htons(get_args_socks_port());
 
-    // fprintf(stdout, "Listening on IPv6 configuration SCTP port %d\n", get_args_mng_port());
+    // fprintf(stderr, "Listening on IPv6 configuration SCTP port %d\n", get_args_mng_port());
     // setsockopt(mng_fd6, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
     
     // if (setsockopt(mng_fd6, SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int)) < 0 ) {
