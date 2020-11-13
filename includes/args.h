@@ -11,7 +11,7 @@
 #include <string.h>
 #include "khash.h"
 
-#define MAX_USERS 2
+#define MAX_USERS 10
 #define MAX_CRED_SIZE 255
 #define MAX_IP_SIZE 16
 // KHASH_SET_INIT_STR(admins)
