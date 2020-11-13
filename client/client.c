@@ -38,7 +38,7 @@ struct mng_args
     struct user user;
 };
 
-static enum resp_status {success = 0x00, server_failure, cmd_unsupported, type_unsupported, arg_error, user_not_found, user_no_space, TOTAL_RESPONSES};
+static enum resp_status {success = 0x00, server_failure, cmd_unsupported, type_unsupported, arg_error, user_not_found, user_no_space, TOTAL_RESPONSES} status;
 static char *resp_string[] = {"Success", "Server failure", "Command unsupported", "Type unsuppurted", "Argument error", "User not found", "Couldn't add user (lack of space)"};
 typedef enum resp_status resp_status;
 
@@ -59,6 +59,7 @@ static void set_sniffer_handler(int fd);
 static void set_doh_ip(int fd);
 static void set_doh_port(int fd);
 static void set_doh_host(int fd);
+static void set_doh_path(int fd);
 static void set_doh_query(int fd);
 
 // =============== PROTOCOL MISC FUNCTIONS ===============
@@ -69,6 +70,7 @@ static void version();
 static void usage(const char *progname);
 static void user(char *s, struct user *user);
 static void sigterm_handler(const int signal);
+static void sigpipe_handler();
 static void input_init();
 static void exit_error();
 static unsigned short port(const char *s);
@@ -92,7 +94,7 @@ void menu(int fd);
 static void (*menu_functions[CANT_MENU_OPTIONS])(int fd) = { get_transfered_bytes, 
             get_historical_connections, get_concurrent_connections, get_users_list, 
             set_new_user, set_remove_user, set_change_pass, set_sniffer_handler,
-            set_doh_ip, set_doh_port, set_doh_host, set_doh_query };
+            set_doh_ip, set_doh_port, set_doh_host, set_doh_path, set_doh_query };
 
 
 int main(const int argc, char **argv){
@@ -114,6 +116,7 @@ int main(const int argc, char **argv){
 
     signal(SIGTERM, sigterm_handler);
     signal(SIGINT, sigterm_handler);
+    signal(SIGPIPE, sigpipe_handler);
 
     input_init();
 
@@ -122,6 +125,7 @@ int main(const int argc, char **argv){
     menu(fd);
     
     close(fd);
+    status = success;
     return 0;
 }
 
@@ -226,9 +230,8 @@ void login(int fd, struct user *user_info) {
                 break;
             }
             case INCORRECT_USER_PASS: {
-                fprintf(stderr, "User or password is not correct, please try again\n");
-                user_info->name = '\0';
-                user_info->pass = '\0';
+                fprintf(stderr, "User or password is not correct\n");
+                done = true;
                 break;
             }
             case SERVER_FAILURE: {
@@ -261,8 +264,9 @@ static void leave_print() {
     printf("\nPress [ENTER] to return\n");
     char opt = 0;
     do {
-        scanf("%1s", &opt);
-    }while(opt != '\n');
+        scanf("%c", &opt);
+        clear_buffer();
+    }while(opt != '\n' && opt != EOF);
 }
 
 static void print_get_results(char *results[], size_t cant_results) {
@@ -303,7 +307,7 @@ void menu(int fd) {
 
     select = atoi(selected_opt) - 1;
 
-    if(select >= 0 && select < CANT_MENU_OPTIONS) {
+    if(select >= 0 && select < CANT_MENU_OPTIONS && !done) {
         menu_functions[select](fd);
     }
     }
@@ -369,9 +373,10 @@ static uint8_t **get_getter_result(int fd, resp_status *status, size_t *cant_arg
         }
 
         recv(fd, args[i], arg_len + 1, 0);
+        
+        if(i + 1 < *cant_args) arg_len = args[i][arg_len];
 
-        arg_len = args[i][arg_len + 1];
-        args[i][arg_len + 1] = '\0';
+        args[i][arg_len] = '\0';
     }
 
     return args;
@@ -428,10 +433,13 @@ final:
 }
 
 static int get_setter_result(int fd, resp_status *status) {
-    return recv(fd, status, 1, 0);
+    char buff[1];
+    int n = recv(fd, buff, 1, 0);
+    *status = buff[0];
+    return n;
 }
 
-static uint8_t **send_and_recive_get_request(int fd, int cmd, size_t *cant_args) {
+static uint8_t **send_and_receive_getter_request(int fd, int cmd, size_t *cant_args) {
     if(send_getter_request(fd, cmd) <= 0) {
         return NULL;
     }
@@ -454,7 +462,7 @@ static uint8_t **send_and_recive_get_request(int fd, int cmd, size_t *cant_args)
 static void get_transfered_bytes(int fd) {
 
     size_t cant_args;
-    uint8_t **response = send_and_recive_get_request(fd, 0x00, &cant_args);
+    uint8_t **response = send_and_receive_getter_request(fd, 0x00, &cant_args);
 
     if(response == NULL) {
         return;
@@ -464,7 +472,7 @@ static void get_transfered_bytes(int fd) {
         goto final;
     }
 
-    unsigned long bytes = (response[0][3] << 24) | (response[0][2] << 16) | (response[0][1] << 8) | response[0][0];
+    unsigned long bytes = (response[0][0] << 24) | (response[0][1] << 16) | (response[0][2] << 8) | response[0][3];
 
     size_t bytes_num_len;
     if(bytes == 0) {
@@ -474,9 +482,9 @@ static void get_transfered_bytes(int fd) {
         bytes_num_len = floor(log10(bytes)) + 1;
     }
 
-    char *msg = "total transfered = %ul B";
+    char *msg = "total transfered = %u B";
     char *result[1];
-    size_t msg_len = sizeof(msg) - 3 + bytes_num_len;
+    size_t msg_len = strlen(msg) + bytes_num_len;
     result[0] = malloc(msg_len + 1);
 
     if(result[0] == NULL) {
@@ -496,7 +504,7 @@ final:
 static void get_connections(int fd, int cmd, char *msg_format) {
 
     size_t cant_args;
-    uint8_t **response = send_and_recive_get_request(fd, cmd, &cant_args);
+    uint8_t **response = send_and_receive_getter_request(fd, cmd, &cant_args);
 
     if(response == NULL) {
         return;
@@ -506,7 +514,7 @@ static void get_connections(int fd, int cmd, char *msg_format) {
         goto final;
     }
 
-    unsigned long num = (response[0][1] << 8) | response[0][0];
+    unsigned long num = (response[0][0] << 8) | response[0][1];
 
     size_t num_len;
     if(num == 0) {
@@ -544,7 +552,7 @@ static void get_concurrent_connections(int fd) {
 
 static void get_users_list(int fd) {
     size_t cant_args;
-    uint8_t **response = send_and_recive_get_request(fd, 3, &cant_args);
+    uint8_t **response = send_and_receive_getter_request(fd, 3, &cant_args);
 
     if(response == NULL) {
         return;
@@ -552,37 +560,12 @@ static void get_users_list(int fd) {
 
     printf("USUARIOS:\n");
     print_get_results((char **) response, cant_args);
+
+    free_args(response, cant_args);
 }
 
-static void set_new_user(int fd) {
-    char user[MAX_CRED_SIZE], pass[MAX_CRED_SIZE];
-
-    printf("Adding new user\n\n");
-    printf("Username: ");
-    scanf(input, user);
-    putc('\n', stdout);
-    printf("Password: ");
-    scanf(input, pass);
-    putc('\n', stdout);
-
-    char confirm = 0;
-    printf("\n\n Are you sure you want to add this user? [Y]es or [N]o\n");
-    do
-    {
-        clear_buffer();
-        confirm = getchar();
-    } while (confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
-
-    if(confirm == 'n' || confirm == 'N') {
-        return;
-    }
-
-    uint8_t *args[2];
-
-    args[0] = (uint8_t *) user;
-    args[1] = (uint8_t *) pass;
-
-    int val = send_setter_request(fd, 0x00, args, 2);
+static void send_and_receive_setter_request(int fd, int cmd, uint8_t **args, uint8_t cant_args) {
+    int val = send_setter_request(fd, cmd, args, cant_args);
 
     if(val <= 0) {
         perror(strerror(errno));
@@ -598,32 +581,226 @@ static void set_new_user(int fd) {
     print_response_status(status);
 }
 
-static void set_remove_user(int fd) {
+static void perform_user_action(int fd, int cmd, char *title) {
+    char user[MAX_CRED_SIZE], pass[MAX_CRED_SIZE];
 
+    printf("%s", title);
+    printf("Username: ");
+    scanf(input, user);
+    putc('\n', stdout);
+    printf("Password: ");
+    scanf(input, pass);
+    putc('\n', stdout);
+
+    char confirm = 0;
+    printf("\n\nAre you sure you want to perform this action? [Y]es or [N]o\n");
+    do
+    {
+        confirm = getchar();
+        clear_buffer();
+    } while (confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
+
+    if(confirm == 'n' || confirm == 'N') {
+        return;
+    }
+
+    uint8_t *args[2];
+
+    args[0] = (uint8_t *) user;
+    args[1] = (uint8_t *) pass;
+
+    args[0] = {1, 0, 3, 1, 1, 3, 'a', 's', 'd', 3, '1', '2', '3'}; //test send
+
+    send(fd, args[0], 13, 0);
+
+    // send_and_receive_setter_request(fd, cmd, args, 2);
+}
+
+static void set_new_user(int fd) {
+    perform_user_action(fd, 0x00, "Adding new user\n\n");
+}
+
+static void set_remove_user(int fd) {
+    char user[MAX_CRED_SIZE];
+
+    printf("Removing an user\n\n");
+    printf("Username: ");
+    scanf(input, user);
+    putc('\n', stdout);
+
+    char confirm = 0;
+    printf("\nAre you sure you want to add this user? [Y]es or [N]o\n");
+    do
+    {
+        clear_buffer();
+        confirm = getchar();
+    } while (confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
+
+    if(confirm == 'n' || confirm == 'N') {
+        return;
+    }
+
+    uint8_t *args[1];
+
+    args[0] = (uint8_t *) user;
+
+    send_and_receive_setter_request(fd, 0x01, args, 1);
 }
 
 static void set_change_pass(int fd) {
-
+    perform_user_action(fd, 0x02, "Change password\n\n");
 }
 
 static void set_sniffer_handler(int fd) {
 
+    char confirm = 0;
+    printf("\nPassword sniffer: press [E] to enable it or [D] to disable it\n");
+    do
+    {
+        clear_buffer();
+        confirm = getchar();
+    } while (confirm != 'e' && confirm != 'E' && confirm != 'd' && confirm != 'D');
+
+    uint8_t opt[] = {0x01, 0x03, 0x01, 0x01, 0x00};
+
+    if(confirm == 'd' || confirm == 'D') {
+        opt[4] = 0x01;
+    }
+
+
+    int n = send(fd, opt, 5, 0);
+
+    if(n <= 0) {
+        exit_error();
+        return;
+    }
+
+    resp_status status;
+    n = get_setter_result(fd, &status);
+
+    if(n <= 0) {
+        exit_error();
+        return;
+    }
+
+    print_response_status(status);
+
 }
 
-static void set_doh_ip(int fd) {
+static void doh_functions(int fd, int cmd, const char *title, bool (*validator)(char *, uint8_t *, uint8_t *)) {
+    char user_input[MAX_CRED_SIZE];
+    char confirm = 0;
 
+        printf("%s", title);
+        scanf(input, user_input);
+    do{
+        printf("\nAre you sure you want to perform this action? [Y]es or [N]o\n");
+        clear_buffer();
+        confirm = getchar();
+    }
+    while(confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
+
+    if(confirm == 'n' || confirm == 'N') {
+        return;
+    }
+
+    uint8_t *args[1];
+    uint8_t * arg = (uint8_t *) user_input;
+
+    if(validator != NULL) {
+
+        uint8_t size = 0;
+
+        if(!validator(user_input, arg, &size)) {
+            printf("Invalid input\n");
+            leave_print();
+            return;
+        }
+
+        uint8_t setter[20];
+        setter[0] = 0x01;
+        setter[1] = cmd;
+        setter[2] = 1;
+        setter[3] = size;
+        memcpy(setter + 4, arg, size);
+
+        if(send(fd, setter, 4 + size, 0) <= 0) {
+            exit_error();
+            return;
+        }
+
+        if(recv(fd, user_input, 1, 0) != 1) {
+            exit_error();
+            return;
+        }
+
+        print_response_status(user_input[0]);
+    }
+    else {
+        args[0] = arg;
+        send_and_receive_setter_request(fd, cmd, args, 1);
+    }
+
+
+}
+
+static bool doh_ip_validator(char * ip, uint8_t * result, uint8_t * size) {
+    struct sockaddr_in sa;
+    struct sockaddr_in6 sa6;
+    bool ret = false;
+
+    if(inet_pton(AF_INET, ip, &(sa.sin_addr))) {
+        *size = 4;
+        memcpy(result, &sa.sin_addr.s_addr, *size);
+        ret = true;
+    }
+    else if(inet_pton(AF_INET6, ip, &(sa6.sin6_addr))) {
+        *size = 16;
+        memcpy(result, &sa6.sin6_addr.__in6_u.__u6_addr8, *size);
+        ret = true;
+    }
+
+    return ret;
+} 
+
+static void set_doh_ip(int fd) {
+    doh_functions(fd, 0x04, "\nInsert new IP address: ", doh_ip_validator);
+}
+
+static bool doh_port_validator(char *port, uint8_t * result, uint8_t * size) {
+    int len = strlen(port);
+    if(len > 5) return false; // 5 es la máxima cantidad de dígitos que puede tener un puerto
+
+    uint16_t num_port = 0;
+
+    for(int i = 0; i < len ; i++) {
+        if(port[i] >= '0' && port[i] <= '9') {
+            num_port = num_port * 10 + (port[i] - '0');
+        }
+        else return false;
+    }
+
+    *size = 2;
+    result[0] = num_port >> 8;
+    result[1] = num_port;
+
+    return true;
 }
 
 static void set_doh_port(int fd) {
-
+    doh_functions(fd, 0x05, "Insert new Port: ", doh_port_validator);
 }
 
 static void set_doh_host(int fd) {
+    doh_functions(fd, 0x06, "Insert new Host: ", NULL);
+}
 
+static void set_doh_path(int fd) {
+    doh_functions(fd, 0x07, "Insert new Path: ", NULL);
 }
 
 static void set_doh_query(int fd) {
-
+    doh_functions(fd, 0x08, "Insert new Query: ", NULL);
 }
 
 static unsigned short port(const char *s) {
@@ -661,6 +838,11 @@ static void user(char *s, struct user *user) {
 
 static void sigterm_handler(const int signal) {
     printf("signal %d, cleaning up and exiting\n", signal);
+    done = true;
+}
+
+static void sigpipe_handler() {
+    printf("Server closed connection, cleaning up and exiting\n");
     done = true;
 }
 
