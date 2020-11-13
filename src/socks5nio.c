@@ -1101,7 +1101,7 @@ static void pop3sniff(struct selector_key *key, uint8_t *ptr, ssize_t size){
         size_t count;
         uint8_t *pop3_ptr = buffer_write_ptr(&s->buffer,&count);
         // Pierdo info :/
-        if(size <= count){
+        if((unsigned) size <= count){
             memcpy(pop3_ptr,ptr,size);
             buffer_write_adv(&s->buffer,size);
         }

@@ -6,7 +6,7 @@
 static const char * OK = "+OK";
 static const char * USER = "USER ";
 static const char * PASS = "PASS ";
-static const char * QUIT = "QUIT";
+// static const char * QUIT = "QUIT";
 static const char * ERR = "-ERR";
 
 static void reset_counters(struct pop3_sniffer* s, uint8_t left){
@@ -158,8 +158,7 @@ bool pop3_is_parsing(struct pop3_sniffer *s){
 }
 
 enum pop3sniff_state pop3_consume(struct pop3_sniffer *s,struct log_info *log){
-    uint8_t * ptr;
-    ssize_t count;
+
     while(buffer_can_read(&s->buffer) && !pop3_is_done(s)){
         uint8_t b = buffer_read(&s->buffer);
         pop3_sniffer_parse(s,b);
