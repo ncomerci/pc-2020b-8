@@ -461,7 +461,7 @@ static unsigned cmd_write(struct selector_key *key){
 static int transfered_bytes(struct cmd_st *d){
     size_t nwrite = 7;
     d->resp = malloc(nwrite * sizeof(uint8_t));
-    uint64_t bytes = get_total_bytes_transfered();
+    uint32_t bytes = get_total_bytes_transfered();
     d->resp[0] = d->parser.cmd;
     d->resp[1] = 0x01;
     d->resp[2] = 0x04;
@@ -495,7 +495,7 @@ static int historical_conexions(struct cmd_st *d){
         if(d->resp == NULL){
         return -1;
     }
-    uint64_t bytes = get_historical_conections();
+    uint16_t bytes = get_historical_conections();
     d->resp[0] = d->parser.cmd;
     d->resp[1] = 0x01;
     d->resp[2] = 0x02;
@@ -511,7 +511,7 @@ static int concurrent_conexions(struct cmd_st *d){
     if(d->resp == NULL){
         return -1;
     }
-    uint64_t bytes = get_concurrent_conections();
+    uint16_t bytes = get_concurrent_conections();
     d->resp[0] = d->parser.cmd;
     d->resp[1] = 0x01;
     d->resp[2] = 0x02;
