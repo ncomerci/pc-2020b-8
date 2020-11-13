@@ -390,7 +390,7 @@ static void free_args(uint8_t **args, size_t cant_args) {
     free(args);
 }
 
-static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant_args) {
+static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant_args, size_t *args_len) {
 
     uint8_t *setter = malloc(3 * sizeof(uint8_t));
     int setter_len = 3;
@@ -406,22 +406,21 @@ static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant
     setter[2] = cant_args;
 
     for(size_t i = 0; i < cant_args ; i++) {
-        const size_t arg_len = strlen((char *)args[i]);
 
-        if(arg_len > 255) {
+        if(args_len[i] > 255) {
             ret = -1;
             goto final;
         }
 
-        aux_len = setter_len + arg_len + 1;
+        aux_len = setter_len + args_len[i] + 1;
         setter = realloc(setter, aux_len);
 
         if(setter == NULL) {
             return -1;
         }
 
-        setter[setter_len] = (uint8_t) arg_len;
-        memcpy(setter + setter_len + 1, args[i], arg_len);
+        setter[setter_len] = args_len[i];
+        memcpy(setter + setter_len + 1, args[i], args_len[i]);
         setter_len = aux_len;
     }
 
@@ -564,21 +563,26 @@ static void get_users_list(int fd) {
     free_args(response, cant_args);
 }
 
-static void send_and_receive_setter_request(int fd, int cmd, uint8_t **args, uint8_t cant_args) {
-    int val = send_setter_request(fd, cmd, args, cant_args);
+static void send_and_receive_setter_request(int fd, int cmd, uint8_t **args, uint8_t cant_args, size_t *args_len) {
+    int val = send_setter_request(fd, cmd, args, cant_args, args_len);
 
     if(val <= 0) {
         perror(strerror(errno));
+        done = true;
     }
 
     resp_status status;
     val = get_setter_result(fd, &status);
 
     if(val <= 0) {
-        perror(strerror(errno));
+        if(val < 0) perror(strerror(errno));
+        
+        printf("Connection closed by server\n");
+        done = true;
     }
-
-    print_response_status(status);
+    else {
+        print_response_status(status);
+    }
 }
 
 static void perform_user_action(int fd, int cmd, char *title) {
@@ -596,24 +600,46 @@ static void perform_user_action(int fd, int cmd, char *title) {
     printf("\n\nAre you sure you want to perform this action? [Y]es or [N]o\n");
     do
     {
-        confirm = getchar();
         clear_buffer();
+        confirm = getchar();
     } while (confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
 
     if(confirm == 'n' || confirm == 'N') {
         return;
     }
 
-    uint8_t *args[2];
+    uint8_t cant_args = 2;
 
-    args[0] = (uint8_t *) user;
-    args[1] = (uint8_t *) pass;
+    uint8_t *args[3];
+    uint8_t user_role[] = {0x01};
 
-    uint8_t demo[] = {1, 0, 3, 1, 1, 3, 'a', 's', 'd', 3, '1', '2', '3'}; //test send
+    args[0] = user_role;
+    args[1] = (uint8_t *) user;
+    args[2] = (uint8_t *) pass;
 
-    send(fd, demo, 13, 0);
+    size_t args_len[] = {1, strlen(user), strlen(pass)};
 
-    // send_and_receive_setter_request(fd, cmd, args, 2);
+    if(cmd == 0x00) {
+        printf("\n\nThis new user is Administrator? [Y]es or [N]o\n");
+        do
+        {
+            clear_buffer();
+            confirm = getchar();
+        } while (confirm != 'y' && confirm != 'Y' && confirm != 'n' && confirm != 'N');
+
+        if(confirm == 'y' || confirm == 'Y') {
+            user_role[0] = 0x00;
+        }
+
+        cant_args = 3;
+    }
+
+    if(cant_args == 2) {
+        send_and_receive_setter_request(fd, cmd, args + 1 , 2, args_len + 1);
+    }
+    else {
+        send_and_receive_setter_request(fd, cmd, args, 3, args_len);
+    }
 }
 
 static void set_new_user(int fd) {
@@ -641,10 +667,12 @@ static void set_remove_user(int fd) {
     }
 
     uint8_t *args[1];
+    size_t arg_len[1];
 
     args[0] = (uint8_t *) user;
+    arg_len[0] = strlen(user);
 
-    send_and_receive_setter_request(fd, 0x01, args, 1);
+    send_and_receive_setter_request(fd, 0x01, args, 1, arg_len);
 }
 
 static void set_change_pass(int fd) {
@@ -705,6 +733,8 @@ static void doh_functions(int fd, int cmd, const char *title, bool (*validator)(
     }
 
     uint8_t *args[1];
+    size_t arg_len[1];
+
     uint8_t * arg = (uint8_t *) user_input;
 
     if(validator != NULL) {
@@ -717,31 +747,33 @@ static void doh_functions(int fd, int cmd, const char *title, bool (*validator)(
             return;
         }
 
-        uint8_t setter[20];
-        setter[0] = 0x01;
-        setter[1] = cmd;
-        setter[2] = 1;
-        setter[3] = size;
-        memcpy(setter + 4, arg, size);
+        arg_len[0] = size;
 
-        if(send(fd, setter, 4 + size, 0) <= 0) {
-            exit_error();
-            return;
-        }
+        // uint8_t setter[20];
+        // setter[0] = 0x01;
+        // setter[1] = cmd;
+        // setter[2] = 1;
+        // setter[3] = size;
+        // memcpy(setter + 4, arg, size);
 
-        if(recv(fd, user_input, 1, 0) != 1) {
-            exit_error();
-            return;
-        }
+        // if(send(fd, setter, 4 + size, 0) <= 0) {
+        //     exit_error();
+        //     return;
+        // }
 
-        print_response_status(user_input[0]);
+        // if(recv(fd, user_input, 1, 0) != 1) {
+        //     exit_error();
+        //     return;
+        // }
+
+        // print_response_status(user_input[0]);
     }
     else {
-        args[0] = arg;
-        send_and_receive_setter_request(fd, cmd, args, 1);
+        arg_len[0] = strlen(user_input); 
     }
 
-
+    args[0] = arg;
+    send_and_receive_setter_request(fd, cmd, args, 1, arg_len);
 }
 
 static bool doh_ip_validator(char * ip, uint8_t * result, uint8_t * size) {
