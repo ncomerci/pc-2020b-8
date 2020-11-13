@@ -395,6 +395,7 @@ static void free_args(uint8_t **args, size_t cant_args) {
 static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant_args, size_t *args_len) {
 
     uint8_t *setter = malloc(3 * sizeof(uint8_t));
+    uint8_t *aux;
     int setter_len = 3;
     int ret = 0;
     int aux_len;
@@ -415,11 +416,14 @@ static int send_setter_request(int fd, uint8_t cmd, uint8_t **args, uint8_t cant
         }
 
         aux_len = setter_len + args_len[i] + 1;
-        setter = realloc(setter, aux_len);
+        aux = realloc(setter, aux_len);
 
-        if(setter == NULL) {
-            return -1;
+        if(aux == NULL) {
+            ret = -1;
+            goto final;
         }
+
+        setter = aux;
 
         setter[setter_len] = args_len[i];
         memcpy(setter + setter_len + 1, args[i], args_len[i]);
