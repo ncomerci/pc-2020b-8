@@ -523,6 +523,12 @@ static int concurrent_conexions(struct cmd_st *d){
 
 //Que pasa si strlen(users) > 255
 static int users(struct cmd_st *d){
+    if(get_args_nusers() == 0){
+        d->resp = malloc(2 * sizeof(uint8_t));
+        d->resp[0] = d->parser.cmd;
+        d->resp[1] = get_args_nusers();
+        return 2;
+    }
     size_t nwrite;
     char * users = get_all_users();
     if(users == NULL){
