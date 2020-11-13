@@ -374,9 +374,11 @@ static uint8_t **get_getter_result(int fd, resp_status *status, size_t *cant_arg
 
         recv(fd, args[i], arg_len + 1, 0);
         
-        if(i + 1 < *cant_args) arg_len = args[i][arg_len];
+        if(i + 1 < *cant_args) n = args[i][arg_len];
 
         args[i][arg_len] = '\0';
+
+        arg_len = n;
     }
 
     return args;
@@ -557,7 +559,7 @@ static void get_users_list(int fd) {
         return;
     }
 
-    printf("USUARIOS:\n");
+    printf("\nUSUARIOS:\n\n");
     print_get_results((char **) response, cant_args);
 
     free_args(response, cant_args);
