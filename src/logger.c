@@ -1,11 +1,7 @@
 #include "../includes/logger.h"
 #include <string.h>
 
-// struct logger {
-//     size_t historical_conections;   // una por usuario
-//     size_t concurrent_conections;   // una por usuario
-//     size_t total_bytes_transfered;  // aumenta cada vez que se hace un send con la cantidad enviada
-// };
+
 
 static void date_to_string(char * date){
     
@@ -80,7 +76,10 @@ static void print_log(struct log_info *socks_info, char type) {
         // fprintf(stdout, print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
         n = snprintf((char*)ptr,count,print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
     }
-    if (n > count){
+    if(n < 0){
+        // Error en la copia
+    }
+    if ((unsigned)n > count){
         buffer_write_adv(&write_data->wb,count);
     }
     else{

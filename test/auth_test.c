@@ -16,7 +16,7 @@ START_TEST(test_auth_normal)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser,AUTH_SOCKS);
 
     uint8_t data[] = {
         0x01, // auth version
@@ -40,7 +40,7 @@ START_TEST(test_auth_unsupported_version)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser, AUTH_SOCKS);
 
     uint8_t data[] = {
         0x04, // auth version
@@ -63,7 +63,7 @@ START_TEST(test_auth_invalid_ulen)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser,AUTH_SOCKS);
 
     uint8_t data[] = {
         0x01, // auth version
@@ -85,7 +85,7 @@ START_TEST(test_auth_invalid_plen)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser,AUTH_SOCKS);
 
     uint8_t data[] = {
         0x01, // auth version
