@@ -254,6 +254,7 @@ char * get_all_users(){
     int init = 255;
     khint_t k;
     char * all_users = malloc(255);
+    char * aux;
     if(all_users == NULL){
         return all_users;
     }
@@ -266,9 +267,11 @@ char * get_all_users(){
             cont += strlen(username);
             if(cont >= init){
                 init *= 2;
-                if ((all_users = realloc(all_users,init)) == NULL){
+                if ((aux = realloc(all_users,init)) == NULL){
+                    free(all_users);
                     return NULL;
                 }
+                all_users = aux;
             }
         }
     }
