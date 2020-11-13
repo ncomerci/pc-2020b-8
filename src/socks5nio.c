@@ -955,11 +955,6 @@ static unsigned request_connecting(struct selector_key *key)
 }
 
 
-static const struct state_definition *socks5_describe_states(void)
-{
-    return client_statbl;
-}
-
 // Handlers top level de la conexión pasiva.
 // son los que emiten los eventos a la máquina de estados.
 

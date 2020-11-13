@@ -1,5 +1,5 @@
 #include "../includes/mng.h"
-#define MAX_BUFF_SIZE 2048
+#define BUFF_SIZE 2048
 #define MNG_ATTACHMENT(key) ((struct mng*)key->data)
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 
@@ -73,7 +73,7 @@ struct mng{
 
     // struct cmd_st cmd;
     /** buffers para write y read **/
-    uint8_t raw_buff_a[MAX_BUFF_SIZE], raw_buff_b[MAX_BUFF_SIZE];
+    uint8_t raw_buff_a[BUFF_SIZE], raw_buff_b[BUFF_SIZE];
     buffer read_buffer, write_buffer;
 };
 

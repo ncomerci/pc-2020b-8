@@ -21,7 +21,6 @@
 #include "doh.h"
 #include "pop3sniff.h"
 #include "args.h"
-#define MAX_BUFF_SIZE 2048
 #define N(x) (sizeof(x)/sizeof((x)[0]))
 
 /** handler del socket pasivo que atiende conexiones socks5 **/
