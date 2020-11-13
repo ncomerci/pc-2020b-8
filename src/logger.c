@@ -65,7 +65,7 @@ static void print_log(struct log_info *socks_info, char type) {
     size_t count;
     struct write* write_data = get_write_data();
     uint8_t * ptr = buffer_write_ptr(&write_data->wb,&count);
-    int n;
+    int n = 0;
     if(type == 'A') {
         print = "[%s]\t%s\tA\t%s\t%u\t%s\t%u\tstatus=%d\n";
         // fprintf(stdout, print, date, user_to_string(socks_info), ret, ntohs(addr_port(socks_info->client_addr)), dest_ip, ntohs(socks_info->dest_port),socks_info->status);
