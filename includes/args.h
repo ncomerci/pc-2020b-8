@@ -12,7 +12,7 @@
 #include "khash.h"
 #include <arpa/inet.h>
 
-#define MAX_USERS 3
+#define MAX_USERS 10
 #define MAX_CRED_SIZE 255
 #define MAX_IP_SIZE 16
 
