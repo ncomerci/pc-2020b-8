@@ -266,7 +266,7 @@ char * get_all_users(){
             cont += strlen(username);
             if(cont >= init){
                 init *= 2;
-                if (NULL == realloc(all_users,init)){
+                if (all_users == realloc(all_users,init)){
                     return NULL;
                 }
             }
