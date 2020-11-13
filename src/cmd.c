@@ -15,7 +15,7 @@ void cmd_parser_init(cmd_parser *p){
 
 static enum cmd_state type(cmd_parser *p, uint8_t b){
     enum cmd_state ret = cmd_cmd;
-    if(b >= 0 || b <= 2){
+    if(b <= 2){
         p->type = b;
         if(b == 2){
             p->status = mng_status_succeeded;
@@ -30,12 +30,12 @@ static enum cmd_state type(cmd_parser *p, uint8_t b){
 
 static enum cmd_state cmd(cmd_parser *p, uint8_t b){
     enum cmd_state ret;
-    if(p->type == 0x00 && (b >= 0 || b < GETCMDS)){
+    if(p->type == 0x00 && b < GETCMDS){
         p->cmd = get_cmds[b];
         ret = cmd_done;
         p->status = mng_status_succeeded;
     }
-    else if(p->type == 0x01 && (b >= 0 || b < SETCMDS)){
+    else if(p->type == 0x01 && b < SETCMDS){
         p->cmd = set_cmds[b][0];
         p->expected_args = set_cmds[b][1];
         ret = cmd_qargs;
