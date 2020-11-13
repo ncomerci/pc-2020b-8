@@ -655,7 +655,7 @@ static void set_remove_user(int fd) {
     putc('\n', stdout);
 
     char confirm = 0;
-    printf("\nAre you sure you want to add this user? [Y]es or [N]o\n");
+    printf("\nAre you sure you want to remove this user? [Y]es or [N]o\n");
     do
     {
         clear_buffer();
