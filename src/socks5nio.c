@@ -473,18 +473,19 @@ static void auth_init(const unsigned state, struct selector_key *key)
 
 static uint8_t check_credentials(const struct auth_st *d){
     // struct socks5args * args = get_args_data();
-    int nusers = get_args_nusers();
+    // int nusers = get_args_nusers();
+    if(registed((char*)d->usr->uname,(char*)d->pass->passwd) != 0)  return AUTH_SUCCESS;
     // struct users *users = get_args_users();
 
-    for(int i = 0; i < nusers; i++){
-        // if((strcmp(users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(users[i].pass,(char*)d->parser.pass.passwd) == 0)){
-        //     return AUTH_SUCCESS;
-        // }
-        struct users user = get_args_user(i);
-        if((strcmp(user.name,(char*)d->usr->uname) == 0) && (strcmp(user.pass,(char*)d->pass->passwd) == 0)){
-            return AUTH_SUCCESS;
-        }
-    }
+    // for(int i = 0; i < nusers; i++){
+    //     // if((strcmp(users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(users[i].pass,(char*)d->parser.pass.passwd) == 0)){
+    //     //     return AUTH_SUCCESS;
+    //     // }
+    //     struct users user = get_args_user(i);
+    //     if((strcmp(user.name,(char*)d->usr->uname) == 0) && (strcmp(user.pass,(char*)d->pass->passwd) == 0)){
+    //         return AUTH_SUCCESS;
+    //     }
+    // }
     return AUTH_FAIL;
 }
 

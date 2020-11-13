@@ -9,10 +9,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include "khash.h"
 
-#define MAX_USERS 10
+#define MAX_USERS 2
 #define MAX_CRED_SIZE 255
-
+#define MAX_IP_SIZE 16
+// KHASH_SET_INIT_STR(admins)
+// KHASH_SET_INIT_STR(users)
+KHASH_MAP_INIT_STR(admins, char*)
+KHASH_MAP_INIT_STR(users, char*)
 /**
 **  Estructura donde se guardan los argumentos de la linea de comando
 **  y las variables que monitorean el uso del servidor y opciones de
@@ -26,11 +31,11 @@ struct users
 
 struct doh
 {
-    char *host;
-    char *ip;
+    char host[MAX_CRED_SIZE+2];
+    char ip[MAX_IP_SIZE];
     unsigned short port;
-    char *path;
-    char *query;
+    char path[MAX_CRED_SIZE];
+    char query[MAX_CRED_SIZE];
 };
 
 struct socks5info
@@ -46,12 +51,22 @@ struct socks5info
 
     // Almacena las variables de DoH
     struct doh doh;
-    
+
+    khash_t(users) *hu;
+
     // Almacena los usuarios 
     struct users users[MAX_USERS];
 
     // Almacena la cantidad de usuarios
     int nusers;
+
+    khash_t(admins) *ha;
+
+    // Almacena los admins
+    struct users admins[MAX_USERS];
+
+    // Almacena la cantidad de admins
+    int nadmins;
 
     // Almacena todas las conexiones historicas de clientes
     uint16_t historical_conections;   
@@ -75,14 +90,16 @@ void parse_args(const int argc, char **argv);
 
 void free_args();
 
-
-
+int check_admin_credentials(char * user, char * pass);
+int registed(char * user, char * pass);
 // getters and setters for info struct
 char * get_args_socks_addr();
 
 unsigned short get_args_socks_port();
 
-struct users get_args_user(int i);
+
+
+char * get_all_users();
 
 bool get_args_disectors_enabled();
 
@@ -111,9 +128,15 @@ int get_args_nusers();
 
 void set_args_nusers(int new_val);
 
+int get_args_nadmins();
+
+void set_args_nadmins(int new_val);
+
+int add_new_admin(char * user, char * pass);
+
 int add_new_user(char * user, char * pass);
 
-int rm_user(char * user);
+int delete_registered(char * user);
 
 int change_user_pass(char *user, char *pass);
 

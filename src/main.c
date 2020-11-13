@@ -102,7 +102,7 @@ int main(const int argc, char **argv)
 
     if (selector_fd_set_nio(server4_fd) == -1)
     {
-        err_msg = "getting server ipv4 socket flags";
+        err_msg = "setting server ipv4 socket as non-blocking";
         goto finally;
     }
 
@@ -143,7 +143,7 @@ int main(const int argc, char **argv)
 
     if (selector_fd_set_nio(server6_fd) == -1)
     {
-        err_msg = "getting server ipv4 socket flags";
+        err_msg = "setting server ipv6 socket as non-blocking";
         goto finally;
     }
 
@@ -173,7 +173,7 @@ int main(const int argc, char **argv)
 
     if (selector_fd_set_nio(mng_fd) == -1)
     {
-        err_msg = "getting server configuration socket flags";
+        err_msg = "setting server configuration socket as non-blocking";
         goto finally;
     }
 
@@ -241,6 +241,12 @@ int main(const int argc, char **argv)
         goto finally;
     }
     
+    if (selector_fd_set_nio(1) == -1)
+    {
+        err_msg = "setting stdout as non-blocking";
+        goto finally;
+    }
+
     //register selector for non blockng stdout
     ss = selector_register(selector, 1, &stdout_handler, OP_NOOP, get_write_data());
 

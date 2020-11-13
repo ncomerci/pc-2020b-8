@@ -59,10 +59,13 @@
 // Dónde:
 // TYPE se refiere al tipo de comando: ‘0x01’ para SET
 // CMD se refiere al comando:
-// - ‘0x00’ SET agregar usuario
-//      - Recibe 2 argumentos: usuario y contraseña:
-//          - usuario: string ASCII
-//          - contraseña: string ASCII
+// - ‘0x00’ SET agregar usuario/admin
+//      - Recibe 3 argumentos: tipo usuario y contraseña:
+//          - tipo: un byte que nos indica si se quiere agregar usuario o admin
+//              - ‘0x00’: admin
+//              - ‘0x01’: user
+//      - usuario: string ASCII
+//      - contraseña: string ASCII
 // - ‘0x01’ SET borrar usuario
 //      - Recibe 1 argumento: usuario.
 //          - usuario: string ASCII
@@ -75,7 +78,10 @@
 //          - ‘0x00’ prender (1 byte)
 //          - ‘0x01’ apagar (1 byte)
 // - ‘0x04’ SET DoH IP: permite establecer la dirección del servidor DoH:
-//      - Recibe 1 argumento: la nueva dirección del servidor DoH
+//      - Recibe 2 argumento: el tipo de IP y la nueva dirección del servidor DoH 
+//          - tipo de ip
+//              - ‘0x00’ = IPv4
+//              - ‘0x01’ = IPv6
 //          - dirección: string ASCII
 // - ‘0x05’ SET DoH Port: permite establecer el puerto del servidor DoH:
 //      - Recibe 1 argumento: el nuevo puerto del servidor DoH
@@ -109,6 +115,7 @@
 // - ‘0x04’ Error de argumentos
 // - ‘0x05’ Error no existe usuario
 // - ‘0x06’ Error no se soportan más usuarios
+//  - ‘0x07’ Error nombre de usuario tomado
 
 // 5. Quit
 // Al ser orientado a sesión, tenemos que habilitar una manera de cortar la conexión. En una sesión abierta, enviando el primer byte con ‘0x02’, se le indica al servidor que se quiere cerrar la conexión.
@@ -185,6 +192,7 @@ enum cmd_reply_status{
     mng_status_malformed_args = 0x04,
     mng_status_nonexisting_user = 0x05,
     mng_status_max_users_reached = 0x06,
+    mng_status_username_taken = 0x07,
 };
 
 typedef struct cmd_parser{ 

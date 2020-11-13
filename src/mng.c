@@ -137,6 +137,7 @@ static size_t users(struct cmd_st *d);
 static size_t del_user(struct cmd_st *d);
 static size_t change_pass(struct cmd_st *d);
 static size_t set_pass_dissector(struct cmd_st *d);
+static size_t set_doh_ip(struct cmd_st *d);
 static size_t set_doh_port(struct cmd_st *d);
 static size_t set_doh_host(struct cmd_st *d);
 static size_t set_doh_path(struct cmd_st *d);
@@ -144,7 +145,7 @@ static size_t set_doh_query(struct cmd_st *d);
 
 query_handler handlers[] = {transfered_bytes,historical_conexions,
                             concurrent_conexions,users,add_user,del_user,
-                            change_pass,set_pass_dissector,set_doh_port,
+                            change_pass,set_pass_dissector,set_doh_ip,set_doh_port,
                             set_doh_host,set_doh_path,set_doh_query};
 
 static struct mng* mng_new(int client_fd){
@@ -263,15 +264,16 @@ static void auth_init(const unsigned state, struct selector_key *key)
 
 
 static uint8_t check_credentials(const struct auth_st *d){
-    int nusers = get_args_nusers();
+    // int nadmins = get_args_nadmins();
     // struct users *users = get_args_users();
-
-    for(int i = 0; i < nusers; i++){
-        struct users user = get_args_user(i);
-        if((strcmp(user.name,(char*)d->usr->uname) == 0) && (strcmp(user.pass,(char*)d->pass->passwd) == 0)){
-            return AUTH_SUCCESS;
-        }
-    }
+    if(check_admin_credentials((char*)d->usr->uname,(char*)d->pass->passwd)) return AUTH_SUCCESS;
+    // for(int i = 0; i < nadmins; i++){
+        
+        // struct users admin = get_args_admin(i);
+        // if((strcmp(admin.name,(char*)d->usr->uname) == 0) && (strcmp(admin.pass,(char*)d->pass->passwd) == 0)){
+            // return AUTH_SUCCESS;
+        // }
+    // }
     return AUTH_BAD_CREDENTIALS;
 }
 
@@ -377,48 +379,19 @@ static unsigned cmd_process(struct cmd_st *d){
     unsigned ret = CMD_WRITE;
     size_t nwrite = 0;
     if(d->parser.type == 0x02){
-        ret = DONE;
+        *d->status = mng_status_succeeded;
     }
     else{
         nwrite = handlers[d->parser.cmd](d);
+    }
+    if(nwrite == -1){
+        *d->status = mng_status_general_server_failure;
+        ret = ERROR;
     }
     if(-1 == cmd_marshall(d->wb,*d->status,d->resp,nwrite)){
         ret = ERROR;
     }
     return ret;
-    // switch (d->parser.cmd){
-    // case cmd_get_transfered:
-    //     transfered_bytes(d);
-    //     break;
-    // case cmd_get_historical:
-    //     break;
-    // case cmd_get_concurrent:
-    //     break;
-    // case cmd_get_users:
-    //     break;
-    // case cmd_set_add_user:
-    //     add_user(d);
-    //     break;
-    // case cmd_set_del_user:
-    //     break;
-    // case cmd_set_change_pass:
-    //     break;
-    // case cmd_set_pass_dissector:
-    //     break;
-    // case cmd_set_doh_ip:
-    //     break;
-    // case cmd_set_doh_port:
-    //     break;
-    // case cmd_set_doh_host:
-    //     break;
-    // case cmd_set_doh_path:
-    //     break;
-    // case cmd_set_doh_query:
-    //     break;
-    // default:
-    //     break;
-    // }
-
 }
 
 
@@ -464,15 +437,23 @@ static unsigned cmd_write(struct selector_key *key){
     ptr = buffer_read_ptr(buff,&count);
     n = send(key->fd,ptr,count,MSG_NOSIGNAL);
     if (n > 0){
-        buffer_read_adv(buff,n);
-        if(!buffer_can_read(buff)){
-            if(selector_set_interest_key(key,OP_READ) == SELECTOR_SUCCESS){
-                ret = CMD_READ;
-            }
-            else{
-                ret = ERROR;
+        if(d->parser.type == 0x02){
+            ret = DONE;
+        }
+        else{
+            buffer_read_adv(buff,n);
+            if(!buffer_can_read(buff)){
+                if(selector_set_interest_key(key,OP_READ) == SELECTOR_SUCCESS){
+                    ret = CMD_READ;
+                }
+                else{
+                    ret = ERROR;
+                }
             }
         }
+    }
+    else{
+        ret = ERROR;
     }
     return ret;
 }
@@ -494,18 +475,26 @@ static size_t transfered_bytes(struct cmd_st *d){
 }
 
 static size_t add_user(struct cmd_st * d){
-    char * user = (char*)d->parser.args[0];
-    char * pass = (char*)d->parser.args[1];
-    *d->status = mng_status_succeeded;
-    if (-1 == add_new_user(user,pass)){
-        *d->status = mng_status_max_users_reached;
+    uint8_t type = d->parser.args[0][0];
+    if(type != 0 && type != 1){
+        *d->status = mng_status_malformed_args;
     }
+    char * user = (char*)d->parser.args[1];
+    char * pass = (char*)d->parser.args[2];
+    *d->status = mng_status_succeeded;
+
+    int ret = type == 0x00 ? add_new_admin(user,pass) : add_new_user(user,pass);
+    if (-1 == ret) *d->status = mng_status_max_users_reached;
+    else if(-2 == ret) *d->status = mng_status_username_taken;
     return 0;
 }
 
 static size_t historical_conexions(struct cmd_st *d){
     size_t nwrite = 5;
     d->resp = malloc(nwrite * sizeof(uint8_t));
+        if(d->resp == NULL){
+        return -1;
+    }
     uint64_t bytes = get_historical_conections();
     d->resp[0] = d->parser.cmd;
     d->resp[1] = 0x01;
@@ -519,6 +508,9 @@ static size_t historical_conexions(struct cmd_st *d){
 static size_t concurrent_conexions(struct cmd_st *d){
     size_t nwrite = 5;
     d->resp = malloc(nwrite * sizeof(uint8_t));
+    if(d->resp == NULL){
+        return -1;
+    }
     uint64_t bytes = get_concurrent_conections();
     d->resp[0] = d->parser.cmd;
     d->resp[1] = 0x01;
@@ -532,19 +524,28 @@ static size_t concurrent_conexions(struct cmd_st *d){
 //Que pasa si strlen(users) > 255
 static size_t users(struct cmd_st *d){
     size_t nwrite;
-    int size = 64;
-    d->resp = malloc(size * sizeof(uint8_t));
-    for(int i = 0; i < get_args_nusers(); i++){
-        char * user = get_args_user(i).name;
-        d->resp[0] = strlen(user);
+    char * users = get_all_users();
+    if(users == NULL){
+        return -1;
+    }
+    d->resp = malloc((strlen(users) + 2) * sizeof(uint8_t));
+        if(d->resp == NULL){
+        return -1;
+    }
+    d->resp[0] = d->parser.cmd;
+    d->resp[1] = get_args_nusers();
+    memcpy(d->resp+2,users,strlen(users));
+    nwrite = strlen(users) + 2;
+    free(users);
+    // d->resp = users;
+        // d->resp[0] = strlen(user);
 
         // if()
-    }
     return nwrite;
 }
 
 static size_t del_user(struct cmd_st *d){
-    if(-1 == rm_user((char*)d->parser.args[0])){
+    if(-1 == delete_registered((char*)d->parser.args[0])){
         *d->status = mng_status_nonexisting_user;
     }
     return 0;
@@ -573,6 +574,27 @@ static size_t set_pass_dissector(struct cmd_st *d){
     }
     return 0;
 }
+
+static size_t set_doh_ip(struct cmd_st *d){
+    *d->status = mng_status_succeeded;
+    uint8_t type =  d->parser.args[0][0];
+    uint8_t *ans = d->parser.args[1];
+    if(type == 0x00){
+        char rst[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, ans, rst, INET_ADDRSTRLEN);
+        set_args_doh_ip(rst);
+    }
+    else if(type == 0x01){
+        char rst[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, ans, rst, INET6_ADDRSTRLEN);
+        set_args_doh_ip(rst);
+    }   
+    else{
+        return -1;
+    }
+    return 0;
+}
+
 static size_t set_doh_port(struct cmd_st *d){
     *d->status = mng_status_succeeded;
     uint16_t ans =  d->parser.args[0][0];
@@ -581,11 +603,15 @@ static size_t set_doh_port(struct cmd_st *d){
     printf("new port: %d",get_args_doh_port());
     return 0;
 }
+
+
 static size_t set_doh_host(struct cmd_st *d){
     *d->status = mng_status_succeeded;
     set_args_doh_host((char*)d->parser.args[0]);
     return 0;
 }
+
+
 static size_t set_doh_path(struct cmd_st *d){
     *d->status = mng_status_succeeded;
     set_args_doh_path((char*)d->parser.args[0]);

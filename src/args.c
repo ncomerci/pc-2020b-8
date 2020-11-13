@@ -1,4 +1,5 @@
 #include "../includes/args.h"
+// #define kh_get_val(kname, hash, key, defVal) (khint_t k=kh_get(kname, hash, key);(k!=kh_end(hash)?kh_val(hash,k):defVal);)
 
 struct socks5info *args;
 
@@ -17,9 +18,10 @@ port(const char *s)
     return (unsigned short)sl;
 }
 
-static void
-user(char *s, struct users *user)
-{
+// static void user(char *s, struct users *user){
+static void user(char *s){
+
+    int absent;
     char *p = strchr(s, ':');
     if (p == NULL)
     {
@@ -30,10 +32,30 @@ user(char *s, struct users *user)
     {
         *p = 0;
         p++;
-        strcpy(user->name,s);
+        if(strlen(s) > 255 || strlen(p) > 255){
+            fprintf(stderr, "username or password too long, maximum length is 255 characters\n");
+            exit(1);
+        }
+        // memcpy(args->users[0].name,s,strlen(s)+1);
+        // memcpy(args->users[0].pass,p,strlen(p)+1);
+        char * u = malloc(strlen(s) + 1);
+        strcpy(u,s);
+        char * ps = malloc(strlen(p) + 1);
+        strcpy(ps,p);
+        khint_t ku = kh_put(users,args->hu,u,&absent);
+        if(absent) {
+            khint_t ka = kh_get(admins,args->ha,u);
+            if(ka ==kh_end(args->ha)) kh_value(args->hu,ku) = ps;   
+        }
+        // khint_t ku = kh_put(users,args->hu,args->users[0].name,&absent);
+        // if(absent) {
+        //     khint_t ka = kh_get(admins,args->ha,s);
+        //     if(ka ==kh_end(args->ha)) kh_value(args->hu,ku) = args->users[0].pass;   
+        // }
+        // strcpy(user->name,s);
         // memcpy(user->name,s,strlen(s))
         // user->name = s;
-        strcpy(user->pass,p);
+        // strcpy(user->pass,p);
         // memcpy(user->)
         // user->pass = p;
     }
@@ -72,12 +94,95 @@ usage(const char *progname)
     exit(1);
 }
 
+
+static void admin(char *s){
+    int absent;
+
+    char *p = strchr(s, ':');
+    if (p == NULL){
+        fprintf(stderr, "password not found\n");
+        exit(1);
+    }
+    else
+    {
+        *p = 0;
+        p++;
+        if(strlen(s) > 255 || strlen(p) > 255){
+            fprintf(stderr, "username or password too long, maximum length is 255 characters\n");
+            exit(1);
+        }
+        // memcpy(args->admins[0].name,s,strlen(s)+1);
+        // memcpy(args->admins[0].pass,p,strlen(p)+1);
+        char * u = malloc(strlen(s) + 1);
+        strcpy(u,s);
+        char * ps = malloc(strlen(p) + 1);
+        strcpy(ps,p);
+        khint_t ka = kh_put(admins,args->ha,u,&absent);
+        if(absent) {
+            khint_t ku = kh_get(users,args->hu,u);
+            if(ku == kh_end(args->hu)){
+                kh_value(args->ha,ka) = ps;   
+            } 
+        }
+        // khint_t ka = kh_put(admins,args->ha,args->admins[0].name,&absent);
+        // if(absent) {
+        //     khint_t ku = kh_get(users,args->hu,args->admins[0].name);
+        //     if(ku == kh_end(args->hu)){
+        //         kh_value(args->ha,ka) = args->admins[0].pass;   
+        //     } 
+        // }
+    }
+}
+
 void free_args(){
     // for(int i = 0; i < args->nusers; i++){
     //     free(args->users->name);
     //     free(args->users->pass);
     // }
+    khint_t k;
+    for (k = 0; k < kh_end(args->hu); ++k){
+        if (kh_exist(args->hu, k)){
+            free((char*)kh_val(args->hu,k));
+            free((char*)kh_key(args->hu, k));
+        }
+    }
+    for (k = 0; k < kh_end(args->ha); ++k){
+        if (kh_exist(args->ha, k)){
+            free((char*)kh_val(args->ha,k));
+            free((char*)kh_key(args->ha, k));
+        }
+    }
+    kh_destroy(admins, args->ha);
+    kh_destroy(users, args->hu);
     free(args);
+}
+
+int check_admin_credentials(char * user, char * pass){
+    int absent;
+    khint_t ka = kh_get(admins,args->ha,user);
+    
+    if(ka != kh_end(args->ha)){
+       char* store_pass = kh_val(args->ha,ka);
+       printf("store_pass: %s\n",kh_value(args->ha,ka));
+       if(strcmp(store_pass,pass) == 0) return 1;
+    }
+    return 0;
+}
+
+static int check_user_credentials(char * user, char * pass){
+    int absent;
+    khint_t ku = kh_get(users,args->hu,user);
+    
+    if(ku != kh_end(args->hu)){
+       char* store_pass = kh_val(args->hu,ku);
+       printf("store_pass: %s\n",kh_value(args->hu,ku));
+       if(strcmp(store_pass,pass) == 0) return 1;
+    }
+    return 0;
+}
+
+int registed(char * user, char * pass){
+    return check_admin_credentials(user, pass) || check_user_credentials(user,pass);
 }
 
 char * get_args_socks_addr(){
@@ -110,8 +215,29 @@ int get_args_nusers(){
 void set_args_nusers(int new_val){
     args->nusers = new_val;
 }
-struct users get_args_user(int i){
-    return args->users[i];
+char * get_all_users(){
+    int init = 255;
+    khint_t k;
+    char * all_users = malloc(255);
+    if(all_users == NULL){
+        return all_users;
+    }
+    int cont = 0;
+    for (k = 0; k < kh_end(args->hu); ++k){
+        if (kh_exist(args->hu, k)){
+            char * username = (char *)kh_key(args->hu,k);
+            printf("user: %s\n", username);
+            all_users[cont++] = strlen(username);
+            strcpy(all_users+cont,username);
+            cont += strlen(username);
+            if(cont >= init){
+                init *= 2;
+                realloc(all_users,init);
+            }
+        }
+    }
+    printf("users: %s\n", all_users);
+    return all_users;
 }
 
 char * get_args_doh_ip(){
@@ -119,7 +245,7 @@ char * get_args_doh_ip(){
 }
 
 void set_args_doh_ip(char * new_ip){
-    args->doh.ip = new_ip;
+    strcpy(args->doh.ip,new_ip);
 }
 
 char * get_args_doh_host(){
@@ -127,7 +253,8 @@ char * get_args_doh_host(){
 }
 
 void set_args_doh_host(char * new_host){
-    args->doh.host = new_host;
+    strcpy(args->doh.host ,new_host);
+    strcat(args->doh.host , "\r\n");
 }
 
 unsigned short get_args_doh_port(){
@@ -142,82 +269,194 @@ char * get_args_doh_path(){
 }
 
 void set_args_doh_path(char * new_path){
-    args->doh.path = new_path;
+    strcpy(args->doh.path ,new_path);
 }
 
 char *get_args_doh_query(){
     return args->doh.query;
 }
 void set_args_doh_query(char * new_query){
-    args->doh.query = new_query;
+    strcpy(args->doh.query ,new_query);
 }
+
+int get_args_nadmins(){
+    return args->nadmins;
+}
+
+void set_args_nadmins(int new_val){
+    args->nadmins = new_val;
+}
+
+
+int add_new_admin(char * user, char * pass){
+    if (args->nadmins >= MAX_USERS){
+        return -1;
+    }
+    int absent; 
+    // args->admins[args->nadmins].name = user;
+    // memcpy(args->admins[args->nadmins].name,user,strlen(user) + 1);
+    char * u = malloc(strlen(user) + 1);
+    strcpy(u,user);
+    char * p = malloc(strlen(pass) + 1);
+    strcpy(p,pass);
+    // khint_t ka = kh_put(admins,args->ha,args->admins[args->nadmins].name,&absent);
+    // if(absent) {
+    //     khint_t ku = kh_get(users,args->hu,args->admins[args->nadmins].name);
+    //     if(ku != kh_end(args->hu)){
+    //         kh_del(admins,args->ha,ka);
+    //         args->admins[args->nadmins].name[0] = '\0';
+    //         return -2; // Ya existe usuario/admin con ese nombre
+    //     }
+    //     memcpy(args->admins[args->nadmins].pass,pass,strlen(pass) + 1);
+    //     kh_value(args->ha,ka) = args->admins[args->nadmins].pass;   
+    // }
+    khint_t ka = kh_put(admins,args->ha,u,&absent);
+    if(absent) {
+        khint_t ku = kh_get(users,args->hu,u);
+        if(ku != kh_end(args->hu)) return -2; // Ya existe usuario/admin con ese nombre
+        kh_value(args->ha,ka) = p;   
+    }
+    else{
+        return -2; // Ya existe usuario/admin con ese nombre
+    }
+    args->nadmins += 1;
+    return 1;    
+}   
 
 int add_new_user(char * user, char * pass){
     if (args->nusers >= MAX_USERS){
         return -1;
     }
-    // args->users[args->nusers].name = malloc((strlen(user)+1) * sizeof(char));
-    // struct users user = args->users[args->nusers];
-    // args->users[args->nusers].pass = malloc((strlen(pass)+1) * sizeof(char));
-    // memcpy(args->users[args->nusers].name,user,strlen(user));
-    // memcpy(args->users[args->nusers].pass,pass,strlen(pass));
-    strcpy(args->users[args->nusers].name,user);
-    strcpy(args->users[args->nusers].pass,pass);
-    // args->users[args->nusers].name[strlen(user)] = '\0'; 
-    // args->users[args->nusers].pass[strlen(pass)] = '\0'; 
-    // args->users[args->nusers].name = user;
-    // args->users[args->nusers].pass = pass;
-    args->nusers += 1;
-    // struct users new_user = args->users[args->nusers++];
-    // new_user.name = user;
-    // new_user.pass = pass;
+    int absent;
+    char * u = malloc(strlen(user) + 1);
+    strcpy(u,user);
+    char * p = malloc(strlen(pass) + 1);
+    strcpy(p,pass);
+    // memcpy(args->users[args->nusers].name,user,strlen(user) + 1);
+
+    // khint_t ku = kh_put(users,args->hu,args->users[args->nusers].name,&absent);
+    // if(absent) {
+    //     khint_t ka = kh_get(admins,args->ha,args->users[args->nusers].name);
+    //     //TODO delete putted key
+    //     if(ka != kh_end(args->ha)){
+    //         args->admins[args->nadmins].name[0] = '\0';
+    //         return -2;
+    //     }
+    //     memcpy(args->users[args->nusers].pass,pass,strlen(pass) + 1);
+    //     kh_value(args->hu,ku) = args->users[args->nusers].pass;   
+    // }
+    khint_t ku = kh_put(users,args->hu,u,&absent);
+    if(absent) {
+            khint_t ka = kh_get(admins,args->ha,u);
+            //TODO delete putted key
+            if(ka != kh_end(args->ha)) return -2;
+            kh_value(args->hu,ku) = p;   
+    }
+    else{
+        return -2;
+    }
+    args->nusers++;
     return 1;
 }
 
-int change_user_pass(char *user, char *pass){
-    for(int i = 0; i < args->nusers; i++){
-        if(strcmp(user,args->users[i].name) == 0){
-            // memcpy(args->user[i].pass,pass,strlen(aps))
 
-            // args->users[i].pass = pass;
-            return 1;
-        }
-    }       
-    return -1;
+static int admin_exists(char * user){
+    int absent;
+    khint_t ka = kh_get(admins,args->ha,user);
+    return ka != kh_end(args->ha) ? 1:0;
 }
+
+static int user_exists(char * user){
+    int absent;
+    khint_t ku = kh_get(users,args->hu,user);
+    // printf("pass: %s\n",kh_val(args->hu,ku));
+    return ku != kh_end(args->hu) ? 1:0;
+}
+
+
 
 
 /* If user deleted was not last in array, 
 ** move users to reacomodate array
 */
-static void delete_user(int i){
-    // if(i == args->nusers - 1){
-    //     args->users[i].name = '\0';
-    //     args->users[i].pass = '\0';
-    //     return;
-    // }
-    // for(int j = i; j < args->nusers; j++){
-    //     if(j == MAX_USERS - 1){
-    //         args->users[j].name = '\0';
-    //         args->users[j].pass = '\0';
-    //     }
-    //     else
-    //     {
-    //         args->users[j] = args->users[j+1];
-    //     }
-    // }
+// static void delete(struct users u[],char *user, int ){
+//     if(i == n - 1){
+//         args->users[i].name[0] = '\0';
+//         args->users[i].pass[0] = '\0';
+//         return;
+//     }
+//     for(int j = 0; j < args->nusers; j++){
+//         if(j == MAX_USERS - 1){
+//             args->users[j].name[0] = '\0';
+//             args->users[j].pass[0] = '\0';
+//         }
+//         else
+//         {
+//             args->users[j] = args->users[j+1];
+//         }
+//     }
+// }
+
+int delete_registered(char * user){
+    khint_t k;
+    if(admin_exists(user)){
+        k = kh_get(admins,args->ha,user);
+        free((char*)kh_val(args->ha,k));
+        free((char*)kh_key(args->ha, k));
+        kh_del(admins,args->ha,k);
+        return 1;
+        // for(int i = 0; i < args->nadmins; i++){
+        // if(strcmp(user,args->users[i].name) == 0){
+        //     // delete(i);
+        //     args->nusers--;
+        //     for(int i = 0; i < args->nadmins;i++){
+        //         printf("user: %s, pass: %s\n",args->admins[i].name, args->users[i].pass);
+        //     }
+        //     return 1;
+        // }
+    }
+    else if(user_exists(user)){
+        k = kh_get(users,args->hu,user);
+        free((char*)kh_val(args->hu,k));
+        free((char*)kh_key(args->hu,k));
+        kh_del(users,args->hu,k);
+        return 1;
+        // delete(args->admins,user,args->nadmins);
+        // for (k = kh_begin(args->ha); k != kh_end(args->ha); ++k){  // traverse
+        //     if (kh_exist(args->ha, k)){            // test if a bucket contains data
+        //         printf("key: %s, value: %s\n",kh_key(args->ha,k),kh_value(args->ha, k));
+        //     }
+        // }
+    }
+
+    return -1;
 }
 
-int rm_user(char * user){
-    for(int i = 0; i < args->nusers; i++){
-        if(strcmp(user,args->users[i].name) == 0){
-            delete_user(i);
-            args->nusers--;
-            return 1;
-        }
+int change_user_pass(char *user, char *pass){
+    khint_t k;
+    if(admin_exists(user)){
+        k = kh_get(admins,args->ha,user);
+        for(int i = 0; i < args->nadmins; i++){
+            if(strcmp(user,args->admins[i].name) == 0){
+                strcpy(args->admins[i].pass, pass);
+                kh_val(args->ha,k) = args->admins[i].pass;
+                return 1;
+            }
+        } 
+    }
+    else if(user_exists(user)){
+        k = kh_get(users,args->hu,user);
+        for(int i = 0; i < args->nadmins; i++){
+            if(strcmp(user,args->users[i].name) == 0){
+                strcpy(args->users[i].pass, pass);
+                kh_val(args->ha,k) = args->users[i].pass;
+                return 1;
+            }
+        } 
     }
     return -1;
 }
+
 
 uint16_t get_historical_conections(){
     return args->historical_conections;
@@ -244,7 +483,6 @@ void set_total_bytes_transfered(uint32_t amount){
     args->total_bytes_transfered = amount;
 }
 
-
 void parse_args(const int argc, char **argv)
 {
     // ---------NEW 
@@ -256,6 +494,20 @@ void parse_args(const int argc, char **argv)
     // ---------- 
     memset(args, 0, sizeof(*args)); // sobre todo para setear en null los punteros de users
 
+    args->hu = kh_init(users);
+    args->ha = kh_init(admins);
+    int absent;
+    char * uadmin = malloc(6);
+    memcpy(uadmin,"admin",6);
+    char * padmin = malloc(6);
+    memcpy(padmin,"admin",6);
+    // memcpy(args->admins[0].name,"admin",6);
+    // memcpy(args->admins[0].pass,"admin",6);
+    khint_t k = kh_put(admins,args->ha,uadmin,&absent);
+    if(absent) kh_value(args->ha,k) = padmin;
+    // khint_t k = kh_put(admins,args->ha,"admin",&absent);
+    // if(absent) kh_value(args->ha,k) = "admin";
+    args->nadmins++;
     args->socks_addr = "0.0.0.0";
     args->socks_port = 1080;
 
@@ -263,12 +515,14 @@ void parse_args(const int argc, char **argv)
     args->mng_port = 8080;
 
     args->disectors_enabled = true;
-
-    args->doh.host = "localhost";
-    args->doh.ip = "127.0.0.1";
+    strcpy(args->doh.host,"localhost\r\n");
+    strcpy(args->doh.ip,"127.0.0.1");
     args->doh.port = 8053;
-    args->doh.path = "/getnsrecord";
-    args->doh.query = "?dns=";
+    strcpy(args->doh.path,"/getnsrecord");
+    strcpy(args->doh.query,"?dns=");
+
+    // strcpy(args->admins[0].name,"admin");
+    // strcpy(args->admins[0].pass,"admin");
 
     int c;
     args->nusers = 0;
@@ -284,7 +538,7 @@ void parse_args(const int argc, char **argv)
             {"doh-query", required_argument, 0, 0xD005},
             {0, 0, 0, 0}};
 
-        c = getopt_long(argc, argv, "hl:L:Np:P:u:v", long_options, &option_index);
+        c = getopt_long(argc, argv, "hl:L:Np:P:u:a:v", long_options, &option_index);
         if (c == -1)
             break;
 
@@ -312,11 +566,12 @@ void parse_args(const int argc, char **argv)
             if (args->nusers >= MAX_USERS)
             {
                 fprintf(stderr, "maximun number of command line users reached: %d.\n", MAX_USERS);
+                free_args();
                 exit(1);
             }
             else
             {
-                user(optarg, args->users + args->nusers);
+                user(optarg);
                 args->nusers++;
             }
             break;
@@ -324,23 +579,49 @@ void parse_args(const int argc, char **argv)
             version();
             exit(0);
             break;
+        case 'a':
+            admin(optarg);
+            args->nadmins++;
+            break;
         case 0xD001:
-            args->doh.ip = optarg;
+            if(strlen(optarg) > MAX_IP_SIZE){
+                fprintf(stderr, "ip too long, max is %d characters\n", MAX_IP_SIZE);
+                free_args();
+                exit(1);
+            }
+            strcpy(args->doh.ip, optarg);
             break;
         case 0xD002:
             args->doh.port = port(optarg);
             break;
         case 0xD003:
-            args->doh.host = optarg;
+            if(strlen(optarg) > MAX_CRED_SIZE){
+                fprintf(stderr, "host too long, max is %d characters\n", MAX_CRED_SIZE);
+                free_args();
+                exit(1);
+            }
+            strcpy(args->doh.host,optarg);
+            strcat(args->doh.host,"\r\n");
             break;
         case 0xD004:
-            args->doh.path = optarg;
+            if(strlen(optarg) > MAX_CRED_SIZE){
+                fprintf(stderr, "path too long, max is %d characters\n", MAX_CRED_SIZE);
+                free_args();
+                exit(1);
+            }
+            strcpy(args->doh.path,optarg);
             break;
         case 0xD005:
-            args->doh.query = optarg;
+            if(strlen(optarg) > MAX_CRED_SIZE){
+                fprintf(stderr, "query too long, max is %d characters\n", MAX_CRED_SIZE);
+                free_args();
+                exit(1);
+            }
+            strcpy(args->doh.query,optarg);
             break;
         default:
             fprintf(stderr, "unknown argument %d.\n", c);
+            free_args();
             exit(1);
         }
     }
@@ -352,6 +633,7 @@ void parse_args(const int argc, char **argv)
             fprintf(stderr, "%s ", argv[optind++]);
         }
         fprintf(stderr, "\n");
+        free_args();
         exit(1);
     }
 }

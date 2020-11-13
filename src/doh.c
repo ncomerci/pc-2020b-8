@@ -39,7 +39,7 @@ static void doh_init(struct DoH *doh) {
     memset(doh->raw_buff, 0, MAX_BUFF_SIZE);
     buffer_init(&doh->buff, MAX_BUFF_SIZE, doh->raw_buff);
     // TODO ADD args host with \r\n
-    doh->host = host;
+    doh->host = get_args_doh_host();
     // doh->ip = ip;
     // doh->port = port;
     // doh->path = path;
