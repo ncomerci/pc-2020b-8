@@ -15,7 +15,7 @@
 
 #define N(x) sizeof(x)/sizeof(x[0])
 #define MAX_CRED_SIZE 256
-#define CANT_MENU_OPTIONS 13
+#define CANT_MENU_OPTIONS 14
 
 // ================================================================
 // ==================== GLOBAL DEFINITIONS ========================
@@ -94,7 +94,7 @@ void menu(int fd);
 static void (*menu_functions[CANT_MENU_OPTIONS])(int fd) = { get_transfered_bytes, 
             get_historical_connections, get_concurrent_connections, get_users_list, 
             set_new_user, set_remove_user, set_change_pass, set_sniffer_handler,
-            set_doh_ip, set_doh_port, set_doh_host, set_doh_path, set_doh_query };
+            set_doh_ip, set_doh_port, set_doh_host, set_doh_path, set_doh_query, quit};
 
 
 int main(const int argc, char **argv){
@@ -256,7 +256,7 @@ static void exit_error() {
 
 static void print_menu_options() {
     system("clear"); //clear screen
-    printf("01. (GET) transefered bytes\n02. (GET) historical connections\n03. (GET) concurrent connections\n04. (GET) users list\n\n05. (SET) add new users\n06. (SET) remove user\n07. (SET) change password to an user\n08. (SET) enable/disable password sniffer\n09. (SET) DOH IP\n10. (SET) DOH port\n11. (SET) DOH host\n12. (SET) DOH path\n13. (SET) DOH query\n\n");
+    printf("01. (GET) transefered bytes\n02. (GET) historical connections\n03. (GET) concurrent connections\n04. (GET) users list\n\n05. (SET) add new users\n06. (SET) remove user\n07. (SET) change password to an user\n08. (SET) enable/disable password sniffer\n09. (SET) DOH IP\n10. (SET) DOH port\n11. (SET) DOH host\n12. (SET) DOH path\n13. (SET) DOH query\n14. QUIT\n\n");
     
 }
 
@@ -735,44 +735,23 @@ static void doh_functions(int fd, int cmd, const char *title, bool (*validator)(
     uint8_t *args[1];
     size_t arg_len[1];
 
-    uint8_t * arg = (uint8_t *) user_input;
-
     if(validator != NULL) {
 
         uint8_t size = 0;
 
-        if(!validator(user_input, arg, &size)) {
+        if(!validator(user_input, (uint8_t *) user_input, &size)) {
             printf("Invalid input\n");
             leave_print();
             return;
         }
 
         arg_len[0] = size;
-
-        // uint8_t setter[20];
-        // setter[0] = 0x01;
-        // setter[1] = cmd;
-        // setter[2] = 1;
-        // setter[3] = size;
-        // memcpy(setter + 4, arg, size);
-
-        // if(send(fd, setter, 4 + size, 0) <= 0) {
-        //     exit_error();
-        //     return;
-        // }
-
-        // if(recv(fd, user_input, 1, 0) != 1) {
-        //     exit_error();
-        //     return;
-        // }
-
-        // print_response_status(user_input[0]);
     }
     else {
         arg_len[0] = strlen(user_input); 
     }
 
-    args[0] = arg;
+    args[0] = (uint8_t *) user_input;
     send_and_receive_setter_request(fd, cmd, args, 1, arg_len);
 }
 
@@ -895,4 +874,21 @@ static void version(){
     fprintf(stderr, "Cliente protocolo G8 version 1.0\n"
                     "ITBA Protocolos de Comunicación 2020/2 -- Grupo 8\n"
                     "AQUI VA LA LICENCIA\n");
+}
+
+
+static void quit(int fd) {
+    uint8_t buff[] = {0x02};
+    send(fd, buff, 1, 0);
+
+    int n = recv(fd, buff, 1, 0);
+
+    if(n != 1) {
+        exit_error();
+    }
+    else {
+        print_response_status(buff[0]);
+    }
+
+    done = true;
 }
