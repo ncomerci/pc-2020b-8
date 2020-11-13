@@ -16,7 +16,7 @@ static void reset_counters(struct pop3_sniffer* s, uint8_t left){
 
 void pop3_sniffer_init(struct pop3_sniffer* sniffer){
     sniffer->state = POP3_INITIAL;
-    memset(sniffer->raw_buff,0,MAX_BUFF_SIZE);
+    memset(sniffer->raw_buff,0,MAX_BUFF_POP3_SIZE);
     buffer_init(&sniffer->buffer, N(sniffer->raw_buff), sniffer->raw_buff);
     sniffer->read = 0;
     sniffer->remaining = strlen(OK);
