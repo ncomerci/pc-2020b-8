@@ -402,9 +402,9 @@ static unsigned hello_read(struct selector_key *key)
 static unsigned hello_process(const struct hello_st *d)
 {
     unsigned ret = HELLO_WRITE;
-
+    d->method = METHOD_NO_AUTHENTICATION_REQUIRED;
     uint8_t m = d->method;
-    m = METHOD_NO_AUTHENTICATION_REQUIRED;
+    
     if (-1 == hello_marshal(d->wb, m))
     {
         ret = ERROR;
