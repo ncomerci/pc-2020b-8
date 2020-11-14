@@ -83,8 +83,8 @@ int main(const int argc, char **argv)
         .handle_close = NULL, // nada que liberar
     };
 
-    int server4_fd = 0;
-    int server6_fd = 0;
+    int server4_fd = -1;
+    int server6_fd = -1;
 
     ///////////////////////////////////////////////////////////// IPv4
     if(get_args_socks_addr4() != NULL) {
@@ -312,12 +312,12 @@ finally:
     }
     selector_close();
     
-    if (server4_fd > 0)
+    if (server4_fd >= 0)
     {
         close(server4_fd);
     }
 
-    if (server6_fd > 0)
+    if (server6_fd >= 0)
     {
         close(server6_fd);
     }
