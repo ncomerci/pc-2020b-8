@@ -402,9 +402,9 @@ static unsigned hello_read(struct selector_key *key)
 static unsigned hello_process(const struct hello_st *d)
 {
     unsigned ret = HELLO_WRITE;
-    d->method = METHOD_NO_AUTHENTICATION_REQUIRED;
+
     uint8_t m = d->method;
-    
+    m =METHOD_NO_AUTHENTICATION_REQUIRED;
     if (-1 == hello_marshal(d->wb, m))
     {
         ret = ERROR;
@@ -448,12 +448,13 @@ static unsigned hello_write(struct selector_key *key)
         {
             if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_READ))
             {
-                if(d->method == METHOD_USERNAME_PASSWORD){
-                    ret = AUTH_READ;
-                }
-                else{
-                    ret = REQUEST_READ;
-                }
+                ret =REQUEST_READ;
+                // if(d->method == METHOD_USERNAME_PASSWORD){
+                //     ret = AUTH_READ;
+                // }
+                // else{
+                //     ret = REQUEST_READ;
+                // }
             }
             else
             {
