@@ -497,9 +497,11 @@ void parse_args(const int argc, char **argv)
         case 'l':
             if(inet_pton(AF_INET, optarg, &(sa4.sin_addr))){
                 args->socks_addr4 = optarg;
+                args->socks_addr6 = NULL;
             }
             else if(inet_pton(AF_INET6, optarg, &(sa6.sin6_addr))){
                 args->socks_addr6 = optarg;
+                args->socks_addr4 = NULL;
             }
             else{
                 fprintf(stderr, "Invalid ip address for socks5 proxy.\n");
