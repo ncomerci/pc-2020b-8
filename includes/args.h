@@ -7,7 +7,6 @@
  * args con defaults o la seleccion humana. Puede cortar
  * la ejecución.
  */
-// void parse_args(const int argc, char **argv, struct socks5args *args);
 
 void parse_args(const int argc, char **argv);
 

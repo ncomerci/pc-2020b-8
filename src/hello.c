@@ -5,9 +5,7 @@ void hello_parser_init(struct hello_parser *p)
     p->state = hello_version;
     p->remaining = 0;
 }
-// void hello_parser_close(struct hello_parser *p){
-    
-// }
+
 enum hello_state hello_parser_feed(struct hello_parser *p, uint8_t b)
 {
     switch (p->state)

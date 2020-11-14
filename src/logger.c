@@ -37,7 +37,7 @@ static in_port_t addr_port(struct sockaddr_storage addr){
 }
 
 static char* dest_addr_to_string(struct log_info *socks_info){
-    char *ip; 
+    char *ip = NULL; 
     switch (socks_info->atyp)
     {
     case ipv4_type:
@@ -70,12 +70,10 @@ static void print_log(struct log_info *socks_info, char type) {
     int n = 0;
     if(type == 'A') {
         print = "[%s]\t%s\tA\t%s\t%u\t%s\t%u\tstatus=%d\n";
-        // fprintf(stdout, print, date, user_to_string(socks_info), ret, ntohs(addr_port(socks_info->client_addr)), dest_ip, ntohs(socks_info->dest_port),socks_info->status);
         n = snprintf((char*)ptr,count,print, date, user_to_string(socks_info), ret, ntohs(addr_port(socks_info->client_addr)), dest_ip, ntohs(socks_info->dest_port),socks_info->status);
     }
     else if(type == 'P') {
         print = "[%s]\t%s\tP\t%s\t%s\t%u\t%s\t%s\n";
-        // fprintf(stdout, print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
         n = snprintf((char*)ptr,count,print, date, user_to_string(socks_info), protocol_str[socks_info->protocol], dest_ip, ntohs(socks_info->dest_port), socks_info->user, socks_info->passwd);
     }
     if(n < 0){

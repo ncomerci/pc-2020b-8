@@ -192,8 +192,8 @@ int request_marshal(buffer *b, const enum socks_reply_status status, const enum 
 {
     size_t n, len = 6;
     uint8_t *buff = buffer_write_ptr(b, &n);
-    uint8_t *aux;
-    int addr_size;
+    uint8_t *aux = NULL;
+    int addr_size = 0;
     switch (atyp)
     {
     case ipv4_type:
@@ -226,14 +226,8 @@ int request_marshal(buffer *b, const enum socks_reply_status status, const enum 
     buff[1] = status;
     buff[2] = 0x00;
     buff[3] = atyp;
-    // int addr_len = sizeof(aux) / sizeof((aux)[0]);
     memcpy(&buff[4], aux, addr_size);
     free(aux);
-    // *(((uint8_t *)&(p->request->dest_port)) + p->read) = b;
-    // uint8_t msb = (dest_port & 0xFF00U) >> 8U;
-    // uint8_t lsb = (dest_port & 0x00FFU);
-    // buff[8] = 0x23;
-    // buff[9] = 0x82;
     memcpy(&buff[4 + addr_size], &dest_port, 2);
     buffer_write_adv(b, len);
     return len;
@@ -333,8 +327,3 @@ enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **o
 
     return ret;
 }
-
-// void request_close(request_parser *p)
-// {
-//     // nada que hacer
-// }

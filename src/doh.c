@@ -15,12 +15,6 @@
 
 #define ipv4_to_long(x) ((x[3]<<24) | (x[2]<<16)| (x[1]<<8) | x[0])
 
-// static char *host = "localhost\r\n";
-// static char *ip = "127.0.0.1";
-// static char *path = "/dns-query"; //TODO: cambiar a getnsrecord antes de entregar
-// static char *query = "?dns=";
-// static size_t port = 8053;
-
 static void doh_init(struct DoH *doh);
 static void doh_close(struct selector_key *key);
 static void doh_done(struct selector_key *key);
@@ -35,17 +29,11 @@ const struct fd_handler doh_handler = {
     .handle_close = doh_close,
 };
 
-//TODO
 static void doh_init(struct DoH *doh) {
 
     memset(doh->raw_buff, 0, MAX_BUFF_SIZE);
     buffer_init(&doh->buff, MAX_BUFF_SIZE, doh->raw_buff);
-    // TODO ADD args host with \r\n
     doh->host = get_args_doh_host();
-    // doh->ip = ip;
-    // doh->port = port;
-    // doh->path = path;
-    // doh->query = query;
     doh->ip = get_args_doh_ip();
     doh->port = get_args_doh_port();
     doh->path = get_args_doh_path();

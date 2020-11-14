@@ -105,12 +105,6 @@ struct socks5
     socklen_t client_addr_len;
     int client_fd;
 
-    // /** resolucion de la direccion del origin server **/
-    // struct addrinfo *origin_resolution;
-
-    // /** intento actual de la direccion del origin server **/
-    // struct addrinfo *origin_resolution_current;
-
     /** informacion del origin server **/
     struct sockaddr_storage origin_addr;
     socklen_t origin_addr_len;
@@ -165,15 +159,12 @@ static void socksv5_close(struct selector_key *key);
 static unsigned copy_r(struct selector_key *key);
 static unsigned copy_w(struct selector_key *key);
 static void hello_read_init(struct selector_key *key);
-// static void hello_read_close(const unsigned state, struct selector_key *key);
 static unsigned hello_read(struct selector_key *key);
 static unsigned hello_write(struct selector_key *key);
 static void auth_init(struct selector_key *key);
 static unsigned auth_read(struct selector_key *key);
 static unsigned auth_write(struct selector_key *key);
-// static void auth_read_close(struct selector_key *key);
 static void request_init(struct selector_key *key);
-// static void request_read_close(const unsigned state, struct selector_key *key);
 static unsigned request_read(struct selector_key *key);
 static unsigned request_resolv_done(struct selector_key *key);
 static void request_connecting_init(struct selector_key *key);
@@ -187,7 +178,6 @@ static const struct state_definition client_statbl[] = {
     {
         .state = HELLO_READ,
         .on_arrival = hello_read_init,
-        // .on_departure = hello_read_close,
         .on_read_ready = hello_read,
     },
     {
@@ -197,7 +187,6 @@ static const struct state_definition client_statbl[] = {
     {
         .state              = AUTH_READ,
         .on_arrival         = auth_init,
-        // .on_departure       = auth_read_close,
         .on_read_ready      = auth_read,
     }, {
         .state              = AUTH_WRITE,
@@ -206,7 +195,6 @@ static const struct state_definition client_statbl[] = {
     {
         .state = REQUEST_READ,
         .on_arrival = request_init,
-        // .on_departure = request_read_close,
         .on_read_ready = request_read,
     },
     {
@@ -278,25 +266,6 @@ static struct socks5 *socks5_new(int client_fd)
     return ret;
 }
 
-// void write_handler(struct selector_key * key){
-//     struct write *w = (struct write *)key->data;
-    
-//     size_t size;
-//     buffer *b = &w->wb;
-//     uint8_t *ptr = buffer_read_ptr(b, &size);
-//     // n = send(key->fd,)
-//     ssize_t n = write(1, ptr,size);
-//     if(n > 0){
-//         if(n < size){
-//             buffer_read_adv(b,n);
-//         }
-//         else{
-//             buffer_read_adv(b,size);
-//             selector_set_interest_key(key, OP_NOOP);
-//         }
-//     }
-// }
-
 /** handler del socket pasivo que atiende conexiones socks5 **/
 void socksv5_passive_accept(struct selector_key *key)
 {
@@ -316,7 +285,6 @@ void socksv5_passive_accept(struct selector_key *key)
     state = socks5_new(client);
     if (state == NULL)
     {
-        // TODO: no aceptar conexiones hasta que se libere alguna
         goto fail;
     }
     memcpy(&state->client_addr, &client_addr, client_addr_len);
@@ -416,14 +384,6 @@ static unsigned hello_process(const struct hello_st *d)
     return ret;
 }
 
-// // libera los recursos al salir de HELLO_READ
-// static void hello_read_close(const unsigned state, struct selector_key *key)
-// {
-//     struct hello_st *d = &ATTACHMENT(key)->client.hello;
-
-//     hello_parser_close(&d->parser);
-// }
-
 // escribe todos los bytes de la respuesta al mensaje 'hello'
 static unsigned hello_write(struct selector_key *key)
 {
@@ -481,20 +441,7 @@ static void auth_init(struct selector_key *key)
 }
 
 static uint8_t check_credentials(const struct auth_st *d){
-    // struct socks5args * args = get_args_data();
-    // int nusers = get_args_nusers();
-    if(registed((char*)d->usr->uname,(char*)d->pass->passwd) != 0)  return AUTH_SUCCESS;
-    // struct users *users = get_args_users();
-
-    // for(int i = 0; i < nusers; i++){
-    //     // if((strcmp(users[i].name,(char*)d->parser.usr.uname) == 0) && (strcmp(users[i].pass,(char*)d->parser.pass.passwd) == 0)){
-    //     //     return AUTH_SUCCESS;
-    //     // }
-    //     struct users user = get_args_user(i);
-    //     if((strcmp(user.name,(char*)d->usr->uname) == 0) && (strcmp(user.pass,(char*)d->pass->passwd) == 0)){
-    //         return AUTH_SUCCESS;
-    //     }
-    // }
+    if(registed((char*)d->usr->uname,(char*)d->pass->passwd) != 0) return AUTH_SUCCESS;
     return AUTH_FAIL;
 }
 
@@ -567,11 +514,6 @@ static unsigned auth_write(struct selector_key *key){
     }
     return ret;
 }
-
-// static void auth_read_close(struct selector_key *key){
-//     struct auth_st *d = &ATTACHMENT(key)->client.auth;
-//     auth_parser_close(&d->parser);
-// }
 
 ////////////////////////////////////////////////////////////////////////
 // REQUEST
@@ -794,14 +736,7 @@ static unsigned request_resolv_done(struct selector_key *key)
 
         s->origin_addr_len = sizeof(struct sockaddr_storage);
         memcpy(&s->origin_addr, &addr_st, s->origin_addr_len);
-        // TODO: guardar la cant original y desp hacer free
         d->addr_resolv.cant_addr--;
-
-        // s->origin_domain = s->origin_resolution->ai_family;
-        // s->origin_addr_len = s->origin_resolution->ai_addrlen;
-        // memcpy(&s->origin_addr, s->origin_resolution->ai_addr, s->origin_resolution->ai_addrlen);
-        // freeaddrinfo(s->origin_resolution);
-        // s->origin_resolution = 0;
     }
 
     return request_connect(key, d);
@@ -956,10 +891,6 @@ static unsigned request_connecting(struct selector_key *key)
             return REQUEST_RESOLV;
         }
 
-        // struct request_st *d = &data->client.request;
-        // if(d->addr_resolv.cant_addr == 0 && d->addr_resolv.ip_type + 1 >= IP_CANT_TYPES) {
-
-        // }
         if (-1 != request_marshal(data->client.request.wb, data->client.request.status, data->client.request.request.dest_addr_type, data->client.request.request.dest_addr, data->client.request.request.dest_port))
         {
             selector_set_interest(key->s, *data->orig.conn.origin_fd, OP_READ);
@@ -1200,7 +1131,6 @@ static unsigned copy_w(struct selector_key *key)
     else
     {
         set_total_bytes_transfered(get_total_bytes_transfered() + n);
-        // printf("bytes transfered: %ld\n",get_total_bytes_transfered());
         if(is_origin(key) && get_args_disectors_enabled()){
             pop3sniff(key,ptr,n);
         }

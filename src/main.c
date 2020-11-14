@@ -31,7 +31,7 @@
 #include "../includes/stdoutwrite.h"
 #include "../includes/mng.h"
 
-#define MAX_PENDING_CONNECTIONS 20
+#define MAX_PENDING_CONNECTIONS 1000
 
 static bool done = false;
 
@@ -50,6 +50,9 @@ int main(const int argc, char **argv)
     close(0);
 
     const char *err_msg = NULL;
+
+    int server4_fd = -1;
+    int server6_fd = -1;
 
 
     parse_args(argc, argv);
@@ -82,9 +85,6 @@ int main(const int argc, char **argv)
         .handle_write = NULL,
         .handle_close = NULL, // nada que liberar
     };
-
-    int server4_fd = -1;
-    int server6_fd = -1;
 
     ///////////////////////////////////////////////////////////// IPv4
     if(get_args_socks_addr4() != NULL) {

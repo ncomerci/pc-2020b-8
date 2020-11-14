@@ -16,28 +16,6 @@ const char * header_content_length = "LENGTH:";
 const char * content_type_message = "application/dns-message";
 const char * header_end = "\r\n\r\n";
 
-// char * doh_response = "HTTP/1.0 200 OK\r\nCONTENT-TYPE:application/dns-message\r\nHEADER-PRUEBA:hola\r\nCONTENT-LENGTH:40\r\n\r\n";
-
-// uint8_t dns_response[] = {0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01,
-//                           0x00, 0x00, 0x00, 0x01, 0x06, 0x68, 0x75, 0x6d,
-//                           0x61, 0x6e, 0x64, 0x02, 0x69, 0x6f, 0x00, 0x00,
-//                           0x01, 0x00, 0x01, 0xc0, 0x0c, 0x00, 0x01, 0x00,
-//                           0x01, 0x00, 0x00, 0x38, 0x40, 0x00, 0x04, 0xd5,
-//                           0xbe, 0x06, 0x42, 0x00, 0x00, 0x29, 0x02, 0x00,
-//                           0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-// uint8_t dns_response_answers[] = {0x3f, 0x2b, 0x81, 0x80, 0x00, 0x01, 0x00, 0x02, 
-// 0x00, 0x00, 0x00, 0x01, 0x03, 0x77, 0x77, 0x77, 
-// 0x04, 0x69, 0x74, 0x62, 0x61, 0x03, 0x65, 0x64, 
-// 0x75, 0x02, 0x61, 0x72, 0x00, 0x00, 0x01, 0x00, 
-// 0x01, 0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00, 
-// 0x00, 0x00, 0x3c, 0x00, 0x04, 0x12, 0xe5, 0xf3, 
-// 0x9f, 0xc0, 0x0c, 0x00, 0x01, 0x00, 0x01, 0x00, 
-// 0x00, 0x00, 0x3c, 0x00, 0x04, 0x12, 0xe5, 0xb5, 
-// 0xac, 0x00, 0x00, 0x29, 0x02, 0x00, 0x00, 0x00, 
-// 0x00, 0x00, 0x00, 0x00};
-
-
 static void remaining_set(doh_response *p, uint16_t n)
 {
     p->remaining = n;
@@ -317,11 +295,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
                 p->state = doh_error_request_lenght;
                 return p->state;
             }
-              /*
-            if(p->contentLengthAux++ > p->contentLength){
-                p->state = doh_error_body_lenght;
-                return p->state;
-            }*/
             break;
 
             // Termino de leer el header y leo toda la query dns que mande anteriormente
@@ -330,11 +303,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
                 p->read = 0;
                 p->state = doh_dns_answer_atts;
             }
-              /*
-            if(p->contentLengthAux++ > p->contentLength){
-                p->state = doh_error_body_lenght;
-                return p->state;
-            }*/
             break;
 
         case doh_dns_answer_atts:
@@ -346,11 +314,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
                 p->read = 0;
                 p->state = doh_dns_answer_rdlength;
             }
-              /*
-            if(p->contentLengthAux++ > p->contentLength){
-                p->state = doh_error_body_lenght;
-                return p->state;
-            }*/
             break;
 
         case doh_dns_answer_type:
@@ -385,11 +348,6 @@ enum doh_state doh_dns_parser_feed(doh_response *p, uint8_t b)
 
                 p->read = 0;
             }
-              /*
-            if(p->contentLengthAux++ > p->contentLength){
-                p->state = doh_error_body_lenght;
-                return p->state;
-            }*/
             break;
 
         case doh_dns_answer_skip:
