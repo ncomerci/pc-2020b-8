@@ -111,7 +111,6 @@ int main(const int argc, char **argv)
             err_msg = "unable to bind ipv4 socket";
             goto finally;
         }
-        //TODO: change MAX PENDING CONNECTIONS
         if (listen(server4_fd, MAX_PENDING_CONNECTIONS) < 0)
         {
             err_msg = "unable to listen on ipv4 socket";
@@ -207,7 +206,6 @@ int main(const int argc, char **argv)
         goto finally;
     }
     
-    //TODO: change MAX PENDING CONNECTIONS
     if (listen(mng_fd, MAX_PENDING_CONNECTIONS) < 0)
     {
         err_msg = "unable to listen on configuration socket";
@@ -233,14 +231,6 @@ int main(const int argc, char **argv)
         err_msg = "registering ipv4 mng fd";
         goto finally;
     }
-
-    //registering ipv6 configuration passive socket
-    // ss = selector_register(selector, mng_fd6, &mng_handler, OP_READ, NULL);
-    // if (ss != SELECTOR_SUCCESS)
-    // {
-    //     err_msg = "registering ipv6 mng fd";
-    //     goto finally;
-    // }
 
     const struct fd_handler stdout_handler = {
         .handle_read = NULL,

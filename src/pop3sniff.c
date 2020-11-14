@@ -9,7 +9,6 @@
 static const char * OK = "+OK";
 static const char * USER = "USER ";
 static const char * PASS = "PASS ";
-// static const char * QUIT = "QUIT";
 static const char * ERR = "-ERR";
 
 static void reset_counters(struct pop3_sniffer* s, uint8_t left){
@@ -126,7 +125,6 @@ enum pop3sniff_state pop3_sniffer_parse(struct pop3_sniffer* s,uint8_t b){
         break;
     case POP3_USER:
         s->state = keyword(s,b,USER,POP3_USER,POP3_READ_USER);
-        // s->state = user(s,b);
         break;
     case POP3_READ_USER:
         s->state = read_user(s,b);
