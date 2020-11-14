@@ -1,13 +1,78 @@
+#include "../includes/args.h"
+#include <errno.h>
+#include <getopt.h>
+#include <arpa/inet.h>
 #include <stdio.h>  /* for printf */
 #include <stdlib.h> /* for exit */
 #include <limits.h> /* LONG_MIN et al */
 #include <string.h> /* memset */
-#include <errno.h>
-#include <getopt.h>
-#include <stdbool.h>
-#include <arpa/inet.h>
-#include "../includes/args.h"
-// #define kh_get_val(kname, hash, key, defVal) (khint_t k=kh_get(kname, hash, key);(k!=kh_end(hash)?kh_val(hash,k):defVal);)
+#include "../includes/khash.h"
+
+#define MAX_USERS 10
+#define MAX_CRED_SIZE 255
+#define MAX_IP_SIZE 16
+
+KHASH_MAP_INIT_STR(admins, char*)
+KHASH_MAP_INIT_STR(users, char*)
+/**
+**  Estructura donde se guardan los argumentos de la linea de comando
+**  y las variables que monitorean el uso del servidor y opciones de
+**  configuración del protocolo de configuración.
+**/
+struct users
+{
+    char name[MAX_CRED_SIZE];
+    char pass[MAX_CRED_SIZE];
+};
+
+struct doh
+{
+    char host[MAX_CRED_SIZE+2];
+    char ip[MAX_IP_SIZE];
+    unsigned short port;
+    char path[MAX_CRED_SIZE];
+    char query[MAX_CRED_SIZE];
+};
+
+struct socks5info
+{
+    char *socks_addr4;
+    char *socks_addr6;
+    unsigned short socks_port;
+
+    char *mng_addr4;
+    char *mng_addr6;
+    unsigned short mng_port;
+
+    // Define si se habilita sniffing
+    bool disectors_enabled;
+
+    // Almacena las variables de DoH
+    struct doh doh;
+
+    // Almacena los users
+    khash_t(users) *hu;
+
+    // Almacena la cantidad de usuarios
+    int nusers;
+
+    // Almacena los admins
+    khash_t(admins) *ha;
+
+    // Almacena la cantidad de admins
+    int nadmins;
+
+    // Almacena todas las conexiones historicas de clientes
+    uint16_t historical_conections;   
+
+    // Almacena todas las conexiones de clientes concurrentes
+    uint16_t concurrent_conections;   
+
+    // Almacena todos los bytes transferidos, de cliente a origen y viceversa
+    uint32_t total_bytes_transfered;  
+};
+
+
 
 struct socks5info *args;
 

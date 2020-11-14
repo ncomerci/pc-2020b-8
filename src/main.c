@@ -312,12 +312,12 @@ finally:
     }
     selector_close();
     
-    if (server4_fd >= 0)
+    if (server4_fd > 0)
     {
         close(server4_fd);
     }
 
-    if (server6_fd >= 0)
+    if (server6_fd > 0)
     {
         close(server6_fd);
     }

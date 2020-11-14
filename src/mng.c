@@ -9,6 +9,7 @@
 #include "../includes/auth.h"
 #include "../includes/cmd.h"
 #include "../includes/args.h"
+#include <string.h>
 
 #define BUFF_SIZE 2048
 #define MNG_ATTACHMENT(key) ((struct mng*)key->data)
