@@ -563,7 +563,7 @@ static void get_users_list(int fd) {
         return;
     }
 
-    printf("\nUSUARIOS:\n\n");
+    printf("\nUSERS:\n\n");
     print_get_results((char **) response, cant_args);
 
     free_args(response, cant_args);

@@ -6,7 +6,7 @@
 #include "logger.h"
 
 #define MAX_SIZE_CRED 255
-#define MAX_BUFF_POP3_SIZE 2048
+#define MAX_BUFF_POP3_SIZE 4096
 
 enum pop3sniff_state
 {
