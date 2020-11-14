@@ -24,9 +24,6 @@
 
 enum socks_v5state
 {
-    /*
-        TODO: completar explicaciones!
-    */
     HELLO_READ,
     HELLO_WRITE,
     AUTH_READ,
