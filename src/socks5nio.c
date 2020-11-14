@@ -404,6 +404,7 @@ static unsigned hello_process(const struct hello_st *d)
     unsigned ret = HELLO_WRITE;
 
     uint8_t m = d->method;
+    m = METHOD_NO_AUTHENTICATION_REQUIRED;
     if (-1 == hello_marshal(d->wb, m))
     {
         ret = ERROR;
