@@ -1,3 +1,10 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "../includes/auth.h"
 
 void auth_parser_init(struct auth_parser *p,enum auth_type type)

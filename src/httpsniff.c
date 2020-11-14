@@ -1,3 +1,10 @@
+
+#include <stdlib.h>
+#include <string.h>
+#include <regex.h>
+
+#include "../includes/buffer.h"
+#include "../includes/base64.h"
 #include "../includes/httpsniff.h"
 
 struct my_regex {

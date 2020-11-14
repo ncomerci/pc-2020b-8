@@ -1,16 +1,8 @@
 #ifndef ARGS_H_kFlmYm1tW9p5npzDr2opQJ9jM8
 #define ARGS_H_kFlmYm1tW9p5npzDr2opQJ9jM8
-#include <stdio.h>  /* for printf */
-#include <stdlib.h> /* for exit */
-#include <limits.h> /* LONG_MIN et al */
-#include <string.h> /* memset */
-#include <errno.h>
-#include <getopt.h>
-#include <stdbool.h>
+
 #include <stdint.h>
-#include <string.h>
 #include "khash.h"
-#include <arpa/inet.h>
 
 #define MAX_USERS 10
 #define MAX_CRED_SIZE 255

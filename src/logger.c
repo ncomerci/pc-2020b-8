@@ -1,7 +1,9 @@
-#include "../includes/logger.h"
 #include <string.h>
-
-
+#include <stdio.h>
+#include "../includes/logger.h"
+#include "../includes/socks5nio.h"
+#include "../includes/hello.h"
+#include "../includes/stdoutwrite.h"
 
 static void date_to_string(char * date){
     

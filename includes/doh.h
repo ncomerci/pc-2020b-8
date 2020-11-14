@@ -6,13 +6,9 @@
 #include "doh_response.h"
 #include "base64.h"
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
-#include <errno.h>
-#include <netdb.h>
-#include "args.h"
 
 #define IPV4_LEN 4
 #define IPV6_LEN 16

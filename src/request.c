@@ -1,3 +1,8 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include "../includes/request.h"
 
 static void remaining_set(request_parser *p, const int n)
@@ -154,7 +159,6 @@ enum request_state request_parser_feed(request_parser *p, uint8_t b)
         next = request_error_usupported_atyp;
         break;
     default:
-        fprintf(stderr, "unknown state %d\n", p->state);
         abort();
         break;
     }

@@ -2,14 +2,12 @@
 #define LOGGER_H
 #include <sys/types.h>
 #include <time.h>
-#include <stdio.h>
 #include <sys/socket.h>
-#include "selector.h"
-#include "socks5nio.h"
-#include "request.h"
-#include "hello.h"
+#include <netinet/in.h>
 #include "auth.h"
-#include "stdoutwrite.h"
+#include "selector.h"
+#include "request.h"
+
 #define DATE_SIZE 21
 
 enum protocol {

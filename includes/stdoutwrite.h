@@ -1,5 +1,6 @@
 #ifndef STDOUTWRITE_H
 #define STDOUTWRITE_H
+#include <stdint.h>
 #include "selector.h"
 #include "buffer.h"
 #define MAX_WRITE_BUFF 2048

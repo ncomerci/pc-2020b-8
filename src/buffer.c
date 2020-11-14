@@ -3,10 +3,9 @@
  *            mantiene puntero de lectura y de escritura.
  */
 #include <string.h>
-#include <stdint.h>
 #include <assert.h>
 
-#include "../includes/buffer.h" //asdasd
+#include "../includes/buffer.h"
 
 inline void
 buffer_reset(buffer *b) {

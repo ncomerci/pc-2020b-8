@@ -1,3 +1,11 @@
+#include <stdio.h>  /* for printf */
+#include <stdlib.h> /* for exit */
+#include <limits.h> /* LONG_MIN et al */
+#include <string.h> /* memset */
+#include <errno.h>
+#include <getopt.h>
+#include <stdbool.h>
+#include <arpa/inet.h>
 #include "../includes/args.h"
 // #define kh_get_val(kname, hash, key, defVal) (khint_t k=kh_get(kname, hash, key);(k!=kh_end(hash)?kh_val(hash,k):defVal);)
 

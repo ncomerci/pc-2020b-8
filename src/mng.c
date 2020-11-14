@@ -1,4 +1,15 @@
 #include "../includes/mng.h"
+
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include "../includes/stm.h"
+#include "../includes/buffer.h"
+#include "../includes/auth.h"
+#include "../includes/cmd.h"
+#include "../includes/args.h"
+
 #define BUFF_SIZE 2048
 #define MNG_ATTACHMENT(key) ((struct mng*)key->data)
 #define N(x) (sizeof(x)/sizeof((x)[0]))
@@ -607,7 +618,6 @@ static int set_doh_port(struct cmd_st *d){
     uint16_t ans =  d->parser.args[0][0];
     ans = (ans << 8) + d->parser.args[0][1];
     set_args_doh_port(ans);
-    printf("new port: %d",get_args_doh_port());
     return 0;
 }
 

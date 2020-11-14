@@ -1,11 +1,10 @@
 #ifndef POP3SNIFF_H
 #define POP3SNIFF_H
-#include <stdio.h>
+
 #include <stdint.h>
-#include <string.h>
-#include <ctype.h>
 #include "buffer.h"
 #include "logger.h"
+
 #define MAX_SIZE_CRED 255
 #define MAX_BUFF_POP3_SIZE 2048
 

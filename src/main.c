@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <sys/types.h>  // socket
 #include <sys/socket.h> // socket
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 

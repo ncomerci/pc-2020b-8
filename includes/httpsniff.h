@@ -1,15 +1,10 @@
 #ifndef HTTPSNIFF_H
 #define HTTPSNIFF_H
 
-#include "buffer.h"
-#include "base64.h"
-#include "logger.h"
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdbool.h>
-#include <regex.h>
+#include "logger.h"
+#include "selector.h"
 
 #define MAX_SIZE 8192 // aprox max header size
 #define N(x) (sizeof(x)/sizeof((x)[0]))

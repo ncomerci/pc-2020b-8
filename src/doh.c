@@ -1,11 +1,13 @@
-#include "../includes/doh.h"
-
 #include <math.h>
-
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+
+#include "../includes/doh.h"
+#include "../includes/args.h"
 
 #define DNS_QUERY_HEADER 12
 #define DNS_QTYPE 2

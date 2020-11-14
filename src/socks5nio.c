@@ -1,4 +1,25 @@
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#include <errno.h>
+#include <time.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include "../includes/hello.h"
+#include "../includes/request.h"
+#include "../includes/buffer.h"
+#include "../includes/stm.h"
+#include "../includes/netutils.h"
+#include "../includes/auth.h"
+#include "../includes/logger.h"
+#include "../includes/httpsniff.h"
+#include "../includes/doh.h"
+#include "../includes/pop3sniff.h"
+#include "../includes/args.h"
 #include "../includes/socks5nio.h"
+
 #define ATTACHMENT(key) ( (struct socks5 *)(key)->data)
 
 enum socks_v5state

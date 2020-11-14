@@ -48,7 +48,6 @@ enum hello_state hello_parser_feed(struct hello_parser *p, uint8_t b)
 
         break;
     default:
-        fprintf(stderr, "unknown state %d\n", p->state);
         abort();
         break;
     }

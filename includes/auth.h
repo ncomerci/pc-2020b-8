@@ -1,14 +1,8 @@
 #ifndef AUTH_H
 #define AUTH_H
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "buffer.h"
+
 #define MAX_USR_PASS_SIZE 0XFF
 #define AUTH_FAIL 0x01
 #define AUTH_SUCCESS 0x00

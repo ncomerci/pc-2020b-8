@@ -1,10 +1,11 @@
 #ifndef CMD_H
 #define CMD_H
-#include <stdint.h>
+
 #include "buffer.h"
+#include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
-#include <stdlib.h>
+#include <stdint.h>
+
 #define MAX_ARGS 5
 #define MAX_ARGS_SIZE 255
 

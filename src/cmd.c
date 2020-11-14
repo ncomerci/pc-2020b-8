@@ -1,6 +1,11 @@
+
+#include <string.h>
+#include <stdlib.h>
 #include "../includes/cmd.h"
+
 #define GETCMDS 4
 #define SETCMDS 9
+
 uint8_t get_cmds[] = {cmd_get_transfered, cmd_get_historical, cmd_get_concurrent, cmd_get_users};
 uint8_t set_cmds[][2] = {{cmd_set_add_user,3}, {cmd_set_del_user,1}, {cmd_set_change_pass,2}, {cmd_set_pass_dissector,1},
                         {cmd_set_doh_ip,2}, {cmd_set_doh_port,1}, {cmd_set_doh_host,1}, {cmd_set_doh_path,1},
