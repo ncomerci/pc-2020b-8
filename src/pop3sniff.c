@@ -70,15 +70,13 @@ enum pop3sniff_state read_user(struct pop3_sniffer* s,uint8_t b){
         }
     }
     else{
-        if(s->read != 0){
-            s->username[s->read] = '\0';
-            s->read = 0;
-            s->remaining = strlen(PASS);
-            s->check_read = 0;
-            s->check_remaining = strlen(ERR);
-            st = POP3_PASS;
-        } 
-    }
+        s->username[s->read] = '\0';
+        s->read = 0;
+        s->remaining = strlen(PASS);
+        s->check_read = 0;
+        s->check_remaining = strlen(ERR);
+        st = POP3_PASS;
+}
     return st;
 }
 
@@ -91,13 +89,11 @@ enum pop3sniff_state read_pass(struct pop3_sniffer* s,uint8_t b){
         }
     }
     else{
-        if(s->read != 0){
-            s->password[s->read] = '\0';
-            s->read = 0;
-            s->check_read = 0;
-            st = POP3_CHECK;
-        } 
-    }
+        s->password[s->read] = '\0';
+        s->read = 0;
+        s->check_read = 0;
+        st = POP3_CHECK; 
+}
     return st;
 }
 
