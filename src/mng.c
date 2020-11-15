@@ -83,7 +83,6 @@ struct mng{
         struct cmd_st cmd;
     }client;
 
-    // struct cmd_st cmd;
     /** buffers para write y read **/
     uint8_t raw_buff_a[BUFF_SIZE], raw_buff_b[BUFF_SIZE];
     buffer read_buffer, write_buffer;
@@ -94,7 +93,6 @@ typedef int (*query_handler)(struct cmd_st *d);
 static void auth_init(struct selector_key *key);
 static unsigned auth_read(struct selector_key *key);
 static unsigned auth_write(struct selector_key *key);
-// static void auth_read_close(struct selector_key *key);
 static void cmd_init(struct selector_key *key);
 static unsigned cmd_read(struct selector_key *key);
 static unsigned cmd_write(struct selector_key *key);
@@ -108,7 +106,6 @@ static const struct state_definition client_mngstates[] = {
     {
         .state = AUTH_READ,
         .on_arrival = auth_init,
-        // .on_departure = auth_read_close,
         .on_read_ready = auth_read,
     },
 
@@ -184,12 +181,10 @@ static struct mng* mng_new(int client_fd){
 const struct fd_handler mng_handler = {
     .handle_read = mng_read,
     .handle_write = mng_write,
-    // .handle_block = mng_block,
     .handle_close = mng_close,
 };
 
 static void mng_done(struct selector_key *key){
-    // struct mng *mng = MNG_ATTACHMENT(key);
     int fd = MNG_ATTACHMENT(key)->client_fd;
     if (fd!= -1){
         if (SELECTOR_SUCCESS != selector_unregister_fd(key->s, fd))
@@ -237,7 +232,6 @@ void mng_passive_accept(struct selector_key * key){
     state = mng_new(client);
     if (state == NULL)
     {
-        // TODO: no aceptar conexiones hasta que se libere alguna
         goto fail;
     }
 
@@ -276,22 +270,14 @@ static void auth_init(struct selector_key *key)
 
 
 static uint8_t check_credentials(const struct auth_st *d){
-    // int nadmins = get_args_nadmins();
-    // struct users *users = get_args_users();
+
     if(check_admin_credentials((char*)d->usr->uname,(char*)d->pass->passwd)) return AUTH_SUCCESS;
-    // for(int i = 0; i < nadmins; i++){
-        
-        // struct users admin = get_args_admin(i);
-        // if((strcmp(admin.name,(char*)d->usr->uname) == 0) && (strcmp(admin.pass,(char*)d->pass->passwd) == 0)){
-            // return AUTH_SUCCESS;
-        // }
-    // }
+
     return AUTH_BAD_CREDENTIALS;
 }
 
 static unsigned auth_process(struct auth_st *d){
     unsigned ret = AUTH_WRITE;
-    // mng_auth_state_to_reply();
     uint8_t status = check_credentials(d);
     if(auth_marshal(d->wb,status,d->parser.version) == -1){
         ret = ERROR;
@@ -310,8 +296,6 @@ static unsigned auth_read(struct selector_key *key){
     ssize_t n;
 
     ptr = buffer_write_ptr(buff,&count);
-    // struct msghdr msghdr;
-    // n = recvmsg(key->fd,&ptr,0);
     n = recv(key->fd,ptr,count,0);
     if (n > 0){
         buffer_write_adv(buff,n);
@@ -320,7 +304,6 @@ static unsigned auth_read(struct selector_key *key){
             if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
             {
                 ret = auth_process(d);
-                // memcpy(&MNG_ATTACHMENT(key)->socks_info.user_info,&d->parser.usr,sizeof(d->parser.usr));  
             }
             else{
                 ret = ERROR;
@@ -342,14 +325,6 @@ static unsigned auth_write(struct selector_key *key){
     ssize_t n;
     buffer *buff = d->wb;
     ptr = buffer_read_ptr(buff,&count);
-    // struct msghdr msghdr;
-    // struct iovec iov[1];
-    // memset(&msghdr,0,sizeof(msghdr));
-    // iov[0].iov_base = ptr;
-    // iov[0].iov_len = count;
-    // msghdr.msg_iov = iov;
-    // msghdr.msg_iovlen = 1;
-    // n = sendmsg(key->fd,&msghdr,MSG_NOSIGNAL);
     n = send(key->fd,ptr,count,MSG_NOSIGNAL);
     if(d->status != AUTH_SUCCESS){
         ret = ERROR;
@@ -367,11 +342,6 @@ static unsigned auth_write(struct selector_key *key){
     }
     return ret;
 }
-
-// static void auth_read_close(struct selector_key *key){
-//     struct auth_st *d = &MNG_ATTACHMENT(key)->client.auth;
-//     auth_parser_close(&d->parser);
-// }
 
 ////////////////////////////////////////////////////////////////////////
 // CMD
@@ -426,7 +396,6 @@ static unsigned cmd_read(struct selector_key *key){
             if (SELECTOR_SUCCESS == selector_set_interest_key(key, OP_WRITE))
             {
                 ret = cmd_process(d);
-                // memcpy(&MNG_ATTACHMENT(key)->socks_info.user_info,&d->parser.usr,sizeof(d->parser.usr));
             }
             else{
                 ret = ERROR;
@@ -556,10 +525,6 @@ static int users(struct cmd_st *d){
     memcpy(d->resp+2,users,strlen(users));
     nwrite = strlen(users) + 2;
     free(users);
-    // d->resp = users;
-        // d->resp[0] = strlen(user);
-
-        // if()
     return nwrite;
 }
 

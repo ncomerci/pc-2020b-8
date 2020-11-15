@@ -31,7 +31,7 @@
 #include "../includes/stdoutwrite.h"
 #include "../includes/mng.h"
 
-#define MAX_PENDING_CONNECTIONS 20
+#define MAX_PENDING_CONNECTIONS 1000
 
 static bool done = false;
 
@@ -50,6 +50,9 @@ int main(const int argc, char **argv)
     close(0);
 
     const char *err_msg = NULL;
+
+    int server4_fd = -1;
+    int server6_fd = -1;
 
 
     parse_args(argc, argv);
@@ -83,9 +86,6 @@ int main(const int argc, char **argv)
         .handle_close = NULL, // nada que liberar
     };
 
-    int server4_fd = -1;
-    int server6_fd = -1;
-
     ///////////////////////////////////////////////////////////// IPv4
     if(get_args_socks_addr4() != NULL) {
         struct sockaddr_in addr;
@@ -111,7 +111,6 @@ int main(const int argc, char **argv)
             err_msg = "unable to bind ipv4 socket";
             goto finally;
         }
-        //TODO: change MAX PENDING CONNECTIONS
         if (listen(server4_fd, MAX_PENDING_CONNECTIONS) < 0)
         {
             err_msg = "unable to listen on ipv4 socket";
@@ -207,7 +206,6 @@ int main(const int argc, char **argv)
         goto finally;
     }
     
-    //TODO: change MAX PENDING CONNECTIONS
     if (listen(mng_fd, MAX_PENDING_CONNECTIONS) < 0)
     {
         err_msg = "unable to listen on configuration socket";
@@ -233,14 +231,6 @@ int main(const int argc, char **argv)
         err_msg = "registering ipv4 mng fd";
         goto finally;
     }
-
-    //registering ipv6 configuration passive socket
-    // ss = selector_register(selector, mng_fd6, &mng_handler, OP_READ, NULL);
-    // if (ss != SELECTOR_SUCCESS)
-    // {
-    //     err_msg = "registering ipv6 mng fd";
-    //     goto finally;
-    // }
 
     const struct fd_handler stdout_handler = {
         .handle_read = NULL,

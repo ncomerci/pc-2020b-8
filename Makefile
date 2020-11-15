@@ -6,8 +6,7 @@ HFILES=$(shell find $(HEADERS) -name '*.h' | sed 's/^.\///')
 FILES=$(shell find $(SRC) -name '*.c' | sed 's/^.\///')
 OFILES=$(patsubst %.c,./%.o,$(FILES))
 
-CFLAGS = -Wall -Wextra -pedantic -pedantic-errors \
-	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
+CFLAGS = -Wall -Wextra -pedantic -pedantic-errors -O3 -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
 
 DEBUG_FLAGS = -Wall -Wextra -pedantic -pedantic-errors \
 	-fsanitize=address -g -std=c11 -D_POSIX_C_SOURCE=200112L $(MYCFLAGS)
@@ -23,8 +22,8 @@ socks5d: $(OFILES)
 tests: 
 	cd test; make all;
 
-debug: $(OFILES)
-	$(CC) $(OFILES) $(DEBUG_FLAGS) -o socks5d
+debug: 
+	$(CC) $(FILES) $(DEBUG_FLAGS) -o socks5d
 
 clnt:
 	cd client; make all;

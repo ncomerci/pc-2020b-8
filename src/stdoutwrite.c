@@ -30,7 +30,6 @@ void write_handler(struct selector_key * key){
     size_t size;
     buffer *b = &w->wb;
     uint8_t *ptr = buffer_read_ptr(b, &size);
-    // n = send(key->fd,)
     ssize_t n = write(1, ptr,size);
     if(n > 0){
         if((unsigned)n < size){

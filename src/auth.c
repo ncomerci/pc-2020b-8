@@ -218,16 +218,3 @@ int auth_marshal(buffer *b, const uint8_t status, uint8_t version)
     buffer_write_adv(b, 2);
     return 2; 
 }
-
-
-// void auth_parser_close(struct auth_parser *p){
-    // free(p->usr);
-    // free(p->pass);
-// }
-
-
-
-
-
-
-

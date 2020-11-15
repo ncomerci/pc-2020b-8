@@ -91,7 +91,6 @@ port(const char *s)
     return (unsigned short)sl;
 }
 
-// static void user(char *s, struct users *user){
 static void user(char *s){
 
     int absent;
@@ -119,7 +118,7 @@ static void user(char *s){
             if(ka ==kh_end(args->ha)) kh_value(args->hu,ku) = ps;   
         }
         else {
-            free(u);    // TODO: revisar estos frees
+            free(u);
             free(ps);
         }
     }
@@ -368,7 +367,7 @@ int add_new_admin(char * user, char * pass){
         kh_value(args->ha,ka) = p;   
     }
     else{
-        free(u);    // TODO: Revisar estos frees
+        free(u);
         free(p);
         return -2; // Ya existe usuario/admin con ese nombre
     }
@@ -389,12 +388,11 @@ int add_new_user(char * user, char * pass){
     khint_t ku = kh_put(users,args->hu,u,&absent);
     if(absent) {
             khint_t ka = kh_get(admins,args->ha,u);
-            //TODO delete putted key
             if(ka != kh_end(args->ha)) return -2;
             kh_value(args->hu,ku) = p;   
     }
     else{
-        free(u);    // TODO: Revisar estos frees
+        free(u);
         free(p);
         return -2;
     }
@@ -449,13 +447,6 @@ int change_user_pass(char *user, char *pass){
         strcpy(newpass,pass);
         kh_val(args->ha,k) = newpass;
         return 1;
-        // for(int i = 0; i < args->nadmins; i++){
-        //     if(strcmp(user,args->admins[i].name) == 0){
-        //         strcpy(args->admins[i].pass, pass);
-        //         kh_val(args->ha,k) = args->admins[i].pass;
-        //         return 1;
-        //     }
-        // } 
     }
     else if(user_exists(user)){
         k = kh_get(users,args->hu,user);
@@ -464,13 +455,6 @@ int change_user_pass(char *user, char *pass){
         strcpy(newpass,pass);
         kh_val(args->hu,k) = newpass;
         return 1;
-        // for(int i = 0; i < args->nadmins; i++){
-        //     if(strcmp(user,args->users[i].name) == 0){
-        //         strcpy(args->users[i].pass, pass);
-        //         kh_val(args->ha,k) = args->users[i].pass;
-        //         return 1;
-        //     }
-        // } 
     }
     return -1;
 }

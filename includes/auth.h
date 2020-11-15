@@ -83,8 +83,6 @@ bool auth_is_done(const enum auth_state state, bool *error);
 **/
 int auth_marshal(buffer *b, const uint8_t status, uint8_t version);
 
-// void auth_parser_close(struct auth_parser *p);
-
 
 #endif
 
