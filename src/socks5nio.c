@@ -11,7 +11,6 @@
 #include "../includes/request.h"
 #include "../includes/buffer.h"
 #include "../includes/stm.h"
-#include "../includes/netutils.h"
 #include "../includes/auth.h"
 #include "../includes/logger.h"
 #include "../includes/httpsniff.h"

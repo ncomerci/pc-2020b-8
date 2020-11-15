@@ -105,3 +105,13 @@ Las acciones que realizan cada opción son:
 12. Permite cambiar el path del servidor DoH (por defecto /getnsrecord).
 13. Permite cambiar la query del servidor DoH (por defecto ?dns=).
 14. Envía el comando de cierre de conexión al proxy y termina la ejecución.
+
+### Ejemplo de ejecución de tests
+```sh
+$ ./test/auth_test.out
+```
+
+### Limpieza de los archivos objeto
+```sh
+$ make clean
+```
