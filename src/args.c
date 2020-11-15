@@ -144,6 +144,7 @@ usage(const char *progname)
             "   -p <SOCKS port>  Puerto entrante conexiones SOCKS. Por defecto el valor es 1080\n"
             "   -P <conf port>   Puerto entrante conexiones configuracion. Por defecto el valor es 8080\n"
             "   -u <name>:<pass> Usuario y contraseña de usuario que puede usar el proxy. Hasta 10.\n"
+            "   -a <name>:<pass> Usuario y contraseña de usuario que puede administrar el proxy. Hasta 9. Por defecto es admin:admin\n"
             "   -v               Imprime información sobre la versión y termina.\n"
             "\n"
             "   --doh-ip    <ip>    Establece la dirección del servidor DoH. Por defecto 127.0.0.1.\n"
