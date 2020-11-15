@@ -915,7 +915,7 @@ static void usage(const char *progname){
             "   -h               Imprime la ayuda y termina.\n"
             "   -L <conf addr>  Dirección donde servirá el servicio de management. Por defecto utiliza loopback.\n"
             "   -P <conf port>   Puerto entrante conexiones configuracion. Por defecto el valor es 8080\n"
-            "   -u <name>:<pass> Usuario y contraseña de usuario para identificarse ante el servidor. Por defecto se pregunta.\n"
+            "   -a <name>:<pass> Usuario y contraseña de usuario para identificarse ante el servidor. Por defecto se pregunta.\n"
             "   -v               Imprime información sobre la versión y termina.\n"
             "\n",
             progname);
