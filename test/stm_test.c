@@ -17,15 +17,15 @@ struct data {
 };
 
 static void
-on_arrival(const unsigned state, struct selector_key *key) {
+on_arrival(struct selector_key *key) {
     struct data *d = (struct data *)key->data;
-    d->arrived[state] = true;
+    // d->arrived[state] = true;
 }
 
 static void
-on_departure(const unsigned state,struct selector_key *key) {
+on_departure(struct selector_key *key) {
     struct data *d = (struct data *)key->data;
-    d->departed[state] = true;
+    // d->departed[state] = true;
 }
 
 static unsigned
