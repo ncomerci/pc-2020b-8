@@ -3,10 +3,9 @@
  *            mantiene puntero de lectura y de escritura.
  */
 #include <string.h>
-#include <stdint.h>
 #include <assert.h>
 
-#include "../includes/buffer.h" //asdasd
+#include "../includes/buffer.h"
 
 inline void
 buffer_reset(buffer *b) {
@@ -100,4 +99,8 @@ buffer_compact(buffer *b) {
         b->read  = b->data;
         b->write = b->data + n;
     }
+}
+
+inline bool buffer_is_compacted(buffer *b) {
+    return b->read == b->data && b->write == b->data;
 }

@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 #include <unistd.h>  // size_t, ssize_t
+#include <stdint.h>
+
+#define MAX_BUFF_SIZE 4096
 
 /**
  * buffer.c - buffer con acceso directo (útil para I/O) que mantiene
@@ -144,6 +147,9 @@ buffer_can_read(buffer *b);
 /** retorna true si se pueden escribir bytes en el buffer */
 bool
 buffer_can_write(buffer *b);
+
+/** retorna true si el buffer está compactado */
+bool buffer_is_compacted(buffer *b);
 
 
 #endif

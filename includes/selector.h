@@ -3,7 +3,7 @@
 
 #include <sys/time.h>
 #include <stdbool.h>
-
+#include <stdlib.h>
 /**
  * selector.c - un muliplexor de entrada salida
  *
@@ -126,7 +126,6 @@ struct selector_key {
 typedef struct fd_handler {
   void (*handle_read)      (struct selector_key *key);
   void (*handle_write)     (struct selector_key *key);
-  void (*handle_block)     (struct selector_key *key);
 
   /**
    * llamado cuando se se desregistra el fd
@@ -135,6 +134,36 @@ typedef struct fd_handler {
   void (*handle_close)     (struct selector_key *key);
 
 } fd_handler;
+
+struct item
+{
+    int fd;
+    fd_interest interest;
+    const fd_handler *handler;
+    void *data;
+};
+
+struct fdselector
+{
+    // almacenamos en una jump table donde la entrada es el file descriptor.
+    // Asumimos que el espacio de file descriptors no va a ser esparso; pero
+    // esto podría mejorarse utilizando otra estructura de datos
+    struct item *fds;
+    size_t fd_size; // cantidad de elementos posibles de fds
+
+    /** fd maximo para usar en select() */
+    int max_fd; // max(.fds[].fd)
+
+    /** descriptores prototipicos ser usados en select */
+    fd_set master_r, master_w;
+    /** para ser usado en el select() (recordar que select cambia el valor) */
+    fd_set slave_r, slave_w;
+
+    /** timeout prototipico para usar en select() */
+    struct timespec master_t;
+    /** tambien select() puede cambiar el valor */
+    struct timespec slave_t;
+};
 
 /**
  * registra en el selector `s' un nuevo file descriptor `fd'.
@@ -184,10 +213,5 @@ selector_select(fd_selector s);
  */
 int
 selector_fd_set_nio(const int fd);
-
-/** notifica que un trabajo bloqueante terminó */
-selector_status
-selector_notify_block(fd_selector s,
-                 const int   fd);
 
 #endif

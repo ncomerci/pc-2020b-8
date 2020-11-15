@@ -16,7 +16,7 @@ START_TEST(test_auth_normal)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser,AUTH_SOCKS);
 
     uint8_t data[] = {
         0x01, // auth version
@@ -30,8 +30,8 @@ START_TEST(test_auth_normal)
     bool errored = false;
     enum auth_state st = auth_consume(&b, &parser, &errored);
     ck_assert_uint_eq(false, errored);
-    ck_assert_str_eq("gero", parser.usr->uname);
-    ck_assert_str_eq("1234", parser.pass->passwd);
+    ck_assert_str_eq("gero", parser.usr.uname);
+    ck_assert_str_eq("1234", parser.pass.passwd);
     ck_assert_uint_eq(auth_done, st);
 }
 END_TEST
@@ -40,7 +40,7 @@ START_TEST(test_auth_unsupported_version)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser, AUTH_SOCKS);
 
     uint8_t data[] = {
         0x04, // auth version
@@ -63,7 +63,7 @@ START_TEST(test_auth_invalid_ulen)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser,AUTH_SOCKS);
 
     uint8_t data[] = {
         0x01, // auth version
@@ -85,7 +85,7 @@ START_TEST(test_auth_invalid_plen)
 {
     struct auth_parser parser;
 
-    auth_parser_init(&parser);
+    auth_parser_init(&parser,AUTH_SOCKS);
 
     uint8_t data[] = {
         0x01, // auth version

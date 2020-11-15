@@ -1,3 +1,8 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 #include "../includes/request.h"
 
 static void remaining_set(request_parser *p, const int n)
@@ -11,7 +16,7 @@ static int remaining_is_done(request_parser *p)
     return p->read >= p->remaining;
 }
 
-static enum request_state version(request_parser *p, uint8_t b)
+static enum request_state version(uint8_t b)
 {
     enum request_state next;
     if (b == 0x05)
@@ -117,11 +122,11 @@ static enum request_state dest_port(request_parser *p, uint8_t b)
 
 enum request_state request_parser_feed(request_parser *p, uint8_t b)
 {
-    enum request_state next;
+    enum request_state next = request_error;
     switch (p->state)
     {
     case request_version:
-        next = version(p, b);
+        next = version(b);
         break;
     case request_cmd:
         next = cmd(p, b);
@@ -142,15 +147,18 @@ enum request_state request_parser_feed(request_parser *p, uint8_t b)
         next = dest_port(p, b);
         break;
     case request_done:
+        next = request_done;
         break;
     case request_error_unsupported_version:
+        next = request_error_unsupported_version;
         break;
     case request_error_usupported_cmd:
+        next = request_error_usupported_cmd;
         break;
     case request_error_usupported_atyp:
+        next = request_error_usupported_atyp;
         break;
     default:
-        fprintf(stderr, "unknown state %d\n", p->state);
         abort();
         break;
     }
@@ -180,27 +188,49 @@ enum request_state request_consume(buffer *b, request_parser *p, bool *error)
     return st;
 }
 
-int request_marshal(buffer *b, const enum socks_reply_status status)
+int request_marshal(buffer *b, const enum socks_reply_status status, const enum socks_atyp atyp, const union socks_addr addr, const in_port_t dest_port)
 {
-    size_t n;
+    size_t n, len = 6;
     uint8_t *buff = buffer_write_ptr(b, &n);
-    if (n < 10)
+    uint8_t *aux = NULL;
+    int addr_size = 0;
+    switch (atyp)
     {
+    case ipv4_type:
+        addr_size = 4;
+        len += addr_size;
+        aux = (uint8_t *)malloc(4 * sizeof(uint8_t));
+        memcpy(aux, &addr.ipv4.sin_addr, 4);
+        break;
+    case ipv6_type:
+        addr_size = 16;
+        len += addr_size;
+        aux = (uint8_t *)malloc(16 * sizeof(uint8_t));
+        memcpy(aux, &addr.ipv6.sin6_addr, 16);
+        break;
+    case domainname_type:
+        addr_size = strlen(addr.fqdn);
+        aux = (uint8_t *)malloc((addr_size + 1) * sizeof(uint8_t));
+        aux[0] = addr_size;
+        memcpy(aux + 1, addr.fqdn, addr_size);
+        addr_size++;
+        len += addr_size;
+        break;
+    }
+    if (n < len)
+    {
+        free(aux);
         return -1;
     }
     buff[0] = 0x05;
     buff[1] = status;
     buff[2] = 0x00;
-    buff[3] = ipv4_type;
-    buff[4] = 0x00;
-    buff[5] = 0x00;
-    buff[6] = 0x00;
-    buff[7] = 0x00;
-    buff[8] = 0x00;
-    buff[9] = 0x00;
-
-    buffer_write_adv(b, 10);
-    return 10;
+    buff[3] = atyp;
+    memcpy(&buff[4], aux, addr_size);
+    free(aux);
+    memcpy(&buff[4 + addr_size], &dest_port, 2);
+    buffer_write_adv(b, len);
+    return len;
 }
 
 bool request_is_done(const enum request_state state, bool *error)
@@ -221,5 +251,79 @@ bool request_is_done(const enum request_state state, bool *error)
     {
         ret = true;
     }
+    return ret;
+}
+
+enum socks_reply_status errno_to_socks(int e)
+{
+    enum socks_reply_status ret = status_general_socks_server_failure;
+
+    switch (e)
+    {
+    case 0:
+        ret = status_succeeded;
+        break;
+    case ECONNREFUSED:
+        ret = status_connection_refused;
+        break;
+    case EHOSTUNREACH:
+        ret = status_host_unreachable;
+        break;
+    case ENETUNREACH:
+        ret = status_network_unreachable;
+        break;
+    case ETIMEDOUT:
+        ret = status_ttl_expired;
+        break;
+    }
+
+    return ret;
+}
+
+enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **originaddr, socklen_t *originlen, int *domain)
+{
+    enum socks_reply_status ret = status_general_socks_server_failure;
+
+    *domain = AF_INET;
+    struct sockaddr *addr = 0x00;
+    socklen_t addrlen = 0;
+
+    switch (request->dest_addr_type)
+    {
+    case domainname_type:
+    {
+        struct hostent *hp = gethostbyname(request->dest_addr.fqdn);
+        if (hp == 0)
+        {
+            memset(&request->dest_addr, 0x00, sizeof(request->dest_addr));
+            break;
+        }
+        request->dest_addr.ipv4.sin_family = hp->h_addrtype;
+        memcpy((char *)&request->dest_addr.ipv4.sin_addr, *hp->h_addr_list, hp->h_length);
+    }
+    // fall through
+    case ipv4_type:
+    {
+        *domain = AF_INET;
+        addr = (struct sockaddr *)&(request->dest_addr.ipv4);
+        addrlen = sizeof(request->dest_addr.ipv4);
+        request->dest_addr.ipv4.sin_port = request->dest_port;
+        break;
+    }
+    case ipv6_type:
+    {
+        *domain = AF_INET6;
+        addr = (struct sockaddr *)&(request->dest_addr.ipv6);
+        addrlen = sizeof(request->dest_addr.ipv6);
+        request->dest_addr.ipv6.sin6_port = request->dest_port;
+        break;
+    }
+    default:
+        return status_address_type_not_supported;
+    }
+
+    *originaddr = addr;
+    *originlen = addrlen;
+
     return ret;
 }

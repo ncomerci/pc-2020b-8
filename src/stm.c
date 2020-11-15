@@ -28,7 +28,7 @@ handle_first(struct state_machine *stm, struct selector_key *key) {
     if(stm->current == NULL) {
         stm->current = stm->states + stm->initial;
         if(NULL != stm->current->on_arrival) {
-            stm->current->on_arrival(stm->current->state, key);
+            stm->current->on_arrival(key);
         }
     }
 }
@@ -40,12 +40,12 @@ void jump(struct state_machine *stm, unsigned next, struct selector_key *key) {
     }
     if(stm->current != stm->states + next) {
         if(stm->current != NULL && stm->current->on_departure != NULL) {
-            stm->current->on_departure(stm->current->state, key);
+            stm->current->on_departure(key);
         }
         stm->current = stm->states + next;
 
         if(NULL != stm->current->on_arrival) {
-            stm->current->on_arrival(stm->current->state, key);
+            stm->current->on_arrival(key);
         }
     }
 }
@@ -74,22 +74,10 @@ stm_handler_write(struct state_machine *stm, struct selector_key *key) {
     return ret;
 }
 
-unsigned
-stm_handler_block(struct state_machine *stm, struct selector_key *key) {
-    handle_first(stm, key);
-    if(stm->current->on_block_ready == 0) {
-        abort();
-    }
-    const unsigned int ret = stm->current->on_block_ready(key);
-    jump(stm, ret, key);
-
-    return ret;
-}
-
 void
 stm_handler_close(struct state_machine *stm, struct selector_key *key) {
     if(stm->current != NULL && stm->current->on_departure != NULL) {
-        stm->current->on_departure(stm->current->state, key);
+        stm->current->on_departure(key);
     }
 }
 

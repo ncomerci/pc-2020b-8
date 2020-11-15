@@ -1,13 +1,10 @@
 #ifndef REQUEST_H
 #define REQUEST_H
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "buffer.h"
+
+#define MAX_FQDN_SIZE 0xFF
 
 enum request_state
 {
@@ -45,7 +42,7 @@ enum socks_atyp
 
 union socks_addr
 {
-    char fqdn[0xFF];
+    char fqdn[MAX_FQDN_SIZE];
     struct sockaddr_in ipv4;
     struct sockaddr_in6 ipv6;
 };
@@ -93,17 +90,15 @@ enum request_state request_consume(buffer *b, request_parser *p, bool *error);
 
 bool request_is_done(const enum request_state state, bool *error);
 
-void request_close(request_parser *p);
-
 /** ensambla la respuesta del request dentro del buffer con el metodo 
  * seleccionado.
 **/
-int request_marshal(buffer *b, const enum socks_reply_status status);
+int request_marshal(buffer *b, const enum socks_reply_status status, const enum socks_atyp atyp, const union socks_addr addr, const in_port_t dest_port);
 
 enum socks_reply_status errno_to_socks(int e);
 
 #include <netdb.h>
 #include <arpa/inet.h>
 
-enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **originaddr, socklen_t *originallen, int *domain);
+enum socks_reply_status cmd_resolve(struct request *request, struct sockaddr **originaddr, socklen_t *originlen, int *domain);
 #endif

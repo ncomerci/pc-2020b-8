@@ -20,12 +20,18 @@
 #include <unistd.h>
 #include <sys/types.h>  // socket
 #include <sys/socket.h> // socket
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-// #include "../includes/socks5.h"
+
 #include "../includes/selector.h"
 #include "../includes/socks5nio.h"
+#include "../includes/args.h"
+#include "../includes/stdoutwrite.h"
+#include "../includes/mng.h"
+
+#define MAX_PENDING_CONNECTIONS 1000
 
 static bool done = false;
 
@@ -36,79 +42,25 @@ sigterm_handler(const int signal)
     done = true;
 }
 
-int main(const int argc, const char **argv)
+
+int main(const int argc, char **argv)
 {
-    unsigned port = 1080;
-
-    if (argc == 1)
-    {
-        // utilizamos el default
-    }
-    else if (argc == 2)
-    {
-        char *end = 0;
-        const long sl = strtol(argv[1], &end, 10);
-
-        if (end == argv[1] || '\0' != *end || ((LONG_MIN == sl || LONG_MAX == sl) && ERANGE == errno) || sl < 0 || sl > USHRT_MAX)
-        {
-            fprintf(stderr, "port should be an integer: %s\n", argv[1]);
-            return 1;
-        }
-        port = sl;
-    }
-    else
-    {
-        fprintf(stderr, "Usage: %s <port>\n", argv[0]);
-        return 1;
-    }
 
     // no tenemos nada que leer de stdin
     close(0);
 
     const char *err_msg = NULL;
+
+    int server4_fd = -1;
+    int server6_fd = -1;
+
+
+    parse_args(argc, argv);
+    // parse_args(argc, argv, args);
+
     selector_status ss = SELECTOR_SUCCESS;
     fd_selector selector = NULL;
 
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
-
-    const int server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (server < 0)
-    {
-        err_msg = "unable to create socket";
-        goto finally;
-    }
-
-    fprintf(stdout, "Listening on TCP port %d\n", port);
-
-    // man 7 ip. no importa reportar nada si falla.
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
-
-    if (bind(server, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-    {
-        err_msg = "unable to bind socket";
-        goto finally;
-    }
-
-    if (listen(server, 20) < 0)
-    {
-        err_msg = "unable to listen";
-        goto finally;
-    }
-
-    // registrar sigterm es útil para terminar el programa normalmente.
-    // esto ayuda mucho en herramientas como valgrind.
-    signal(SIGTERM, sigterm_handler);
-    signal(SIGINT, sigterm_handler);
-
-    if (selector_fd_set_nio(server) == -1)
-    {
-        err_msg = "getting server socket flags";
-        goto finally;
-    }
     const struct selector_init conf = {
         .signal = SIGALRM,
         .select_timeout = {
@@ -133,13 +85,181 @@ int main(const int argc, const char **argv)
         .handle_write = NULL,
         .handle_close = NULL, // nada que liberar
     };
-    ss = selector_register(selector, server, &socksv5,
-                           OP_READ, NULL);
-    if (ss != SELECTOR_SUCCESS)
+
+    ///////////////////////////////////////////////////////////// IPv4
+    if(get_args_socks_addr4() != NULL) {
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        inet_pton(AF_INET, get_args_socks_addr4(), &addr.sin_addr);
+        addr.sin_port = htons(get_args_socks_port());
+
+        server4_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (server4_fd < 0)
+        {
+            err_msg = "unable to create ipv4 socket";
+            goto finally;
+        }
+
+        fprintf(stderr, "Listening on IPv4 socks5 server TCP port %d\n", get_args_socks_port());
+
+        // man 7 ip. no importa reportar nada si falla.
+        setsockopt(server4_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+
+        if (bind(server4_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+        {
+            err_msg = "unable to bind ipv4 socket";
+            goto finally;
+        }
+        if (listen(server4_fd, MAX_PENDING_CONNECTIONS) < 0)
+        {
+            err_msg = "unable to listen on ipv4 socket";
+            goto finally;
+        }
+
+        // registrar sigterm es útil para terminar el programa normalmente.
+        // esto ayuda mucho en herramientas como valgrind.
+        signal(SIGTERM, sigterm_handler);
+        signal(SIGINT, sigterm_handler);
+
+        if (selector_fd_set_nio(server4_fd) == -1)
+        {
+            err_msg = "setting server ipv4 socket as non-blocking";
+            goto finally;
+        }
+
+            // registering ipv4 passive socket
+        ss = selector_register(selector, server4_fd, &socksv5, OP_READ, NULL);
+
+        if (ss != SELECTOR_SUCCESS)
+        {
+            err_msg = "registering ipv4 fd";
+            goto finally;
+        }
+    }
+
+    ///////////////////////////////////////////////////////////// IPv6
+    if(get_args_socks_addr6() != NULL) {
+        struct sockaddr_in6 addr6;
+        memset(&addr6, 0, sizeof(addr6));
+        addr6.sin6_family = AF_INET6;
+        inet_pton(AF_INET6,get_args_socks_addr6(),&addr6.sin6_addr);
+        addr6.sin6_port = htons(get_args_socks_port());
+        
+        server6_fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+        if (server6_fd < 0)
+        {
+            err_msg = "unable to create ipv6 socket";
+            goto finally;
+        }
+
+        fprintf(stderr, "Listening on IPv6 socks5 server TCP port %d\n", get_args_socks_port());
+        setsockopt(server6_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+
+        if (setsockopt(server6_fd, SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int)) < 0 ) {
+            err_msg = "setsockopt(IPV6_V6ONLY) failed";
+            goto finally;
+        }  
+
+        if (bind(server6_fd, (struct sockaddr *)&addr6,sizeof(addr6)) < 0)
+        {
+            err_msg = "unable to bind ipv6 socket";
+            goto finally;
+        }
+
+        if (listen(server6_fd, MAX_PENDING_CONNECTIONS) < 0)
+        {
+            err_msg = "unable to listen on ipv6 socket";
+            goto finally;
+        }
+
+        if (selector_fd_set_nio(server6_fd) == -1)
+        {
+            err_msg = "setting server ipv6 socket as non-blocking";
+            goto finally;
+        }
+
+        // registering ipv6 passive socket
+        ss = selector_register(selector, server6_fd, &socksv5, OP_READ, NULL);
+
+        if (ss != SELECTOR_SUCCESS)
+        {
+            err_msg = "registering ipv6 fd";
+            goto finally;
+        }
+    }
+
+    ////////////////////////////IPv4 SCTP socket for configuration
+    int mng_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_SCTP);
+
+    struct sockaddr_in mng_addr;
+    mng_addr.sin_family = AF_INET;
+    inet_pton(AF_INET,get_args_mng_addr4(),&mng_addr.sin_addr);
+    mng_addr.sin_port = htons(get_args_mng_port());
+
+    fprintf(stderr, "Listening on IPv4 configuration SCTP port %d\n", get_args_mng_port());
+    setsockopt(mng_fd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+    
+    if (bind(mng_fd, (struct sockaddr *)&mng_addr, sizeof(mng_addr)) < 0)
     {
-        err_msg = "registering fd";
+        err_msg = "unable to bind configuration socket";
         goto finally;
     }
+    
+    if (listen(mng_fd, MAX_PENDING_CONNECTIONS) < 0)
+    {
+        err_msg = "unable to listen on configuration socket";
+        goto finally;
+    }
+
+    if (selector_fd_set_nio(mng_fd) == -1)
+    {
+        err_msg = "setting server configuration socket as non-blocking";
+        goto finally;
+    }
+
+    const struct fd_handler mng_handler = {
+        .handle_read = mng_passive_accept,
+        .handle_write = NULL,
+        .handle_close = NULL, // nada que liberar
+    };
+
+    //registering ipv4 configuration passive socket
+    ss = selector_register(selector, mng_fd, &mng_handler, OP_READ, NULL);
+    if (ss != SELECTOR_SUCCESS)
+    {
+        err_msg = "registering ipv4 mng fd";
+        goto finally;
+    }
+
+    const struct fd_handler stdout_handler = {
+        .handle_read = NULL,
+        .handle_write = write_handler, // escribe en stdout los bytes que entran en el buffer
+        .handle_close = NULL, // nada que liberar
+    };
+
+    if(-1 == init_write(selector)){
+        err_msg = "Unable to allocate write struct";
+        goto finally;
+    }
+    
+    // Setting STDOUT has non blocking
+    if (selector_fd_set_nio(1) == -1)
+    {
+        err_msg = "setting stdout as non-blocking";
+        goto finally;
+    }
+
+    //register selector for non blockng stdout
+    ss = selector_register(selector, 1, &stdout_handler, OP_NOOP, get_write_data());
+
+    if (ss != SELECTOR_SUCCESS)
+    {
+        err_msg = "registering write fd";
+        goto finally;
+    }
+    
+
     for (; !done;)
     {
         err_msg = NULL;
@@ -156,6 +276,7 @@ int main(const int argc, const char **argv)
     }
 
     int ret = 0;
+
 finally:
     if (ss != SELECTOR_SUCCESS)
     {
@@ -170,17 +291,25 @@ finally:
         perror(err_msg);
         ret = 1;
     }
+    // free write struct
+    free_write();
+    // free args struct
+    free_args();
+
     if (selector != NULL)
     {
         selector_destroy(selector);
     }
     selector_close();
-
-    socksv5_pool_destroy();
-
-    if (server >= 0)
+    
+    if (server4_fd >= 0)
     {
-        close(server);
+        close(server4_fd);
+    }
+
+    if (server6_fd >= 0)
+    {
+        close(server6_fd);
     }
     return ret;
 }

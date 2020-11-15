@@ -46,7 +46,6 @@ enum hello_state hello_parser_feed(struct hello_parser *p, uint8_t b)
 
         break;
     default:
-        fprintf(stderr, "unknown state %d\n", p->state);
         abort();
         break;
     }
@@ -101,6 +100,6 @@ int hello_marshal(buffer *b, const uint8_t method)
     }
     buf[0] = 0x05;
     buf[1] = method;
-    buffer_write_adv(b, n);
+    buffer_write_adv(b, 2);
     return 2;
 }
