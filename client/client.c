@@ -626,7 +626,7 @@ static void perform_user_action(int fd, int cmd, char *title) {
     size_t args_len[] = {1, strlen(user), strlen(pass)};
 
     if(cmd == 0x00) {
-        printf("\n\nThis new user is Administrator? [Y]es or [N]o\n");
+        printf("\n\nIs this new user an Administrator? [Y]es or [N]o\n");
         do
         {
             clear_buffer();
