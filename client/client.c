@@ -38,8 +38,8 @@ struct mng_args
     struct user user;
 };
 
-static enum resp_status {success = 0x00, server_failure, cmd_unsupported, type_unsupported, arg_error, user_not_found, user_no_space, TOTAL_RESPONSES} status;
-static char *resp_string[] = {"Success", "Server failure", "Command unsupported", "Type unsuppurted", "Argument error", "User not found", "Couldn't add user (lack of space)"};
+static enum resp_status {success = 0x00, server_failure, cmd_unsupported, type_unsupported, arg_error, user_not_found, user_no_space, username_taken, TOTAL_RESPONSES} status;
+static char *resp_string[] = {"Success", "Server failure", "Command unsupported", "Type unsuppurted", "Argument error", "User not found", "Couldn't add user (lack of space)", "User already exists"};
 typedef enum resp_status resp_status;
 
 // ================================================================
