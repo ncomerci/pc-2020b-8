@@ -136,18 +136,10 @@ struct socks5
     uint8_t raw_buff_a[MAX_BUFF_SIZE], raw_buff_b[MAX_BUFF_SIZE];
     buffer read_buffer, write_buffer;
 
-    /** siguiente en el pool **/
-    struct socks5 *next;
 };
 
 
 
-/*
-Pool de 'struct socks5', para ser reusados.
-Como tenemos un único hilo que emite eventos, no necesitamos barreras de contención.
-*/
-
-static struct socks5 *pool = 0;
 
 static void socksv5_write(struct selector_key *key);
 static void socksv5_read(struct selector_key *key);
@@ -228,16 +220,7 @@ const struct fd_handler socks5_handler = {
 static struct socks5 *socks5_new(int client_fd)
 {
     struct socks5 *ret;
-    if (pool == NULL)
-    {
-        ret = malloc(sizeof(*ret));
-    }
-    else
-    {
-        ret = pool;
-        pool = pool->next;
-        ret->next = 0;
-    }
+    ret = malloc(sizeof(*ret));
     if (ret == NULL)
     {
         return NULL;
@@ -290,6 +273,7 @@ void socksv5_passive_accept(struct selector_key *key)
     {
         goto fail;
     }
+    set_concurrent_conections(get_concurrent_conections() + 1);
     return;
 fail:
     if (client != -1)
@@ -747,12 +731,7 @@ fail:
     }
 }
 
-// static void request_read_close(const unsigned state, struct selector_key *key)
-// {
-//     struct request_st *d = &ATTACHMENT(key)->client.request;
 
-//     request_close(&d->parser);
-// }
 
 ////////////////////////////////////////////////////////////////////
 // REQUEST CONNECT
@@ -873,7 +852,6 @@ static unsigned request_connecting(struct selector_key *key)
         {
             data->client.request.status = status_succeeded;
             set_historical_conections(get_historical_conections() +1);
-            set_concurrent_conections(get_concurrent_conections() + 1);
         }
         else {
             data->client.request.status = errno_to_socks(error);
