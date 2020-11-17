@@ -924,7 +924,9 @@ static void socksv5_done(struct selector_key *key)
             close(fds[i]);
         }
     }
-    set_concurrent_conections(get_concurrent_conections() - 1);
+    if(get_concurrent_conections() > 0){
+        set_concurrent_conections(get_concurrent_conections() - 1);
+    }
 }
 
 static void socksv5_read(struct selector_key *key)
