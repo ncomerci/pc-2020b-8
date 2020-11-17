@@ -31,7 +31,7 @@
 #include "../includes/stdoutwrite.h"
 #include "../includes/mng.h"
 
-#define MAX_PENDING_CONNECTIONS 200
+#define MAX_PENDING_CONNECTIONS 500
 
 static bool done = false;
 
