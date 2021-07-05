@@ -21,7 +21,7 @@ Requerimientos previos:
 Compilación del proyecto e inicio del proxy
 
 ```sh
-$ git clone git@bitbucket.org:itba/pc-2020b-8.git
+$ git clone https://github.com/ncomerci/pc-2020b-8.git
 $ cd pc-2020b-8
 $ make all
 $ ./socks5d
